@@ -50,6 +50,11 @@ echo ""
 echo "Press Ctrl+C to stop the server"
 echo ""
 
+# Load environment variables from .env
+set -a
+source .env
+set +a
+
 # Set PYTHONPATH and start the server
 export PYTHONPATH="${PYTHONPATH}:$(pwd)"
 cd "$(pwd)"

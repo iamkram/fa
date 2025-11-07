@@ -63,11 +63,10 @@ def batch_data_retrieval_node(state: InteractiveGraphState, config) -> Dict[str,
     # Determine tier
     tier = get_requested_tier(state)
 
-    # Query database
+    # Query database - fetch most recent summary regardless of date
     with db_manager.get_session() as session:
         summary = session.query(StockSummary).filter(
             StockSummary.ticker == ticker,
-            StockSummary.generation_date == datetime.utcnow().date(),
             StockSummary.fact_check_status == 'passed'
         ).order_by(StockSummary.generation_timestamp.desc()).first()
 

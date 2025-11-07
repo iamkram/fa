@@ -20,6 +20,7 @@ os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from langsmith import traceable
 from src.interactive.graphs.interactive_graph import interactive_graph
 from src.interactive.state import InteractiveGraphState
 from src.shared.utils.redis_client import redis_session_manager
@@ -72,6 +73,32 @@ class QueryResponse(BaseModel):
 
 
 # ============================================================================
+# LangSmith Traced Graph Invocation
+# ============================================================================
+
+@traceable(name="Interactive Query Graph", run_type="chain")
+async def run_interactive_graph(input_state: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+    """Wrapper to ensure LangSmith tracing for graph execution"""
+    # Create config with LangSmith metadata
+    if config is None:
+        config = {}
+
+    # Add LangSmith run name and tags
+    config = {
+        **config,
+        "run_name": "Interactive Query Graph",
+        "tags": ["interactive", "fa-query", input_state.get("fa_id", "unknown")],
+        "metadata": {
+            "query_text": input_state.get("query_text", "")[:100],
+            "query_type": input_state.get("query_type", "chat"),
+            "session_id": input_state.get("session_id", ""),
+        }
+    }
+
+    return await interactive_graph.ainvoke(input_state, config=config)
+
+
+# ============================================================================
 # REST Endpoints
 # ============================================================================
 
@@ -121,8 +148,8 @@ async def process_query(request: QueryRequest):
             context=request.context
         )
 
-        # Run the graph
-        result = await interactive_graph.ainvoke(input_state.model_dump())
+        # Run the graph with LangSmith tracing
+        result = await run_interactive_graph(input_state.model_dump())
 
         # Store conversation turn in Redis
         try:
@@ -201,8 +228,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 context=context
             )
 
-            # Run the graph
-            result = await interactive_graph.ainvoke(input_state.model_dump())
+            # Run the graph with LangSmith tracing
+            result = await run_interactive_graph(input_state.model_dump())
 
             # Send response
             await websocket.send_json({

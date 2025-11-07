@@ -1,0 +1,7 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "interactive_graph": "./src/interactive/graphs/interactive_graph.py:interactive_graph"
+  },
+  "env": ".env"
+}
