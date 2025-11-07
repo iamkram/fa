@@ -23,7 +23,7 @@ class QueryClassifierAgent:
 
     def __init__(self):
         self.llm = ChatAnthropic(
-            model="claude-haiku-4-20250514",  # Fast and cheap for classification
+            model="claude-3-5-haiku-20241022",  # Fast and cheap for classification
             temperature=0.0,
             anthropic_api_key=settings.anthropic_api_key
         )
