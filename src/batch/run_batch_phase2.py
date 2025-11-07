@@ -1,5 +1,13 @@
 #!/usr/bin/env python3
-"""Run Phase 2 batch processing with multi-source data and 3-tier summaries"""
+"""Run Phase 2 batch processing with multi-source data and 3-tier summaries
+
+Supports:
+- Multi-source data ingestion (EDGAR, BlueMatrix, FactSet)
+- 3-tier summary generation (Hook, Medium, Expanded)
+- LLM-based fact-checking (--validate flag)
+- Retry logic with negative prompting (--validate flag)
+- Concurrent processing (--concurrent flag)
+"""
 
 import asyncio
 import sys
@@ -14,6 +22,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from src.config.settings import settings
 from src.batch.graphs.phase2_graph import phase2_graph
+from src.batch.graphs.phase2_with_validation import phase2_validation_graph
+from src.batch.orchestrator.concurrent_batch import ConcurrentBatchOrchestrator
 from src.batch.state import BatchGraphStatePhase2
 from src.shared.database.connection import db_manager
 from src.shared.models.database import Stock, BatchRunAudit
@@ -30,12 +40,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def process_stock(stock: Stock, batch_run_id: str):
+async def process_stock(stock: Stock, batch_run_id: str, graph):
     """Process a single stock through the Phase 2 pipeline
 
     Args:
         stock: Stock model instance
         batch_run_id: Unique ID for this batch run
+        graph: The LangGraph graph to execute (with or without validation)
 
     Returns:
         Result dictionary from graph execution
@@ -52,8 +63,8 @@ async def process_stock(stock: Stock, batch_run_id: str):
     )
 
     try:
-        # Run the Phase 2 graph
-        result = await phase2_graph.ainvoke(input_state.model_dump())
+        # Run the graph
+        result = await graph.ainvoke(input_state.model_dump())
 
         status = result.get('storage_status', 'unknown')
 
@@ -81,20 +92,39 @@ async def process_stock(stock: Stock, batch_run_id: str):
         }
 
 
-async def run_batch(limit: int = None, ticker: str = None):
+async def run_batch(
+    limit: int = None,
+    ticker: str = None,
+    validate: bool = False,
+    concurrent: bool = False,
+    max_concurrent: int = 5
+):
     """Run Phase 2 batch process for stocks
 
     Args:
         limit: Optional limit on number of stocks to process
         ticker: Optional single ticker to process (for testing)
+        validate: Enable fact-checking and retry logic
+        concurrent: Enable concurrent processing
+        max_concurrent: Maximum concurrent stocks (only if concurrent=True)
     """
     batch_run_id = str(uuid.uuid4())
     start_time = datetime.utcnow()
 
+    # Select graph based on validation flag
+    graph = phase2_validation_graph if validate else phase2_graph
+
+    features = ["Multi-source ingestion", "3-tier summaries"]
+    if validate:
+        features.append("Fact-checking")
+        features.append("Retry logic")
+    if concurrent:
+        features.append(f"Concurrent ({max_concurrent} max)")
+
     logger.info(f"\n{'#'*60}")
     logger.info(f"PHASE 2 BATCH RUN: {batch_run_id}")
     logger.info(f"Time: {start_time}")
-    logger.info(f"Features: Multi-source ingestion + 3-tier summaries")
+    logger.info(f"Features: {', '.join(features)}")
     logger.info(f"{'#'*60}\n")
 
     # Get stocks to process
@@ -124,17 +154,48 @@ async def run_batch(limit: int = None, ticker: str = None):
         logger.warning("No stocks found in database!")
         return
 
-    # Process stocks sequentially (Phase 2 - parallelization in future phase)
-    results = []
-    for i, stock_info in enumerate(stock_data, 1):
-        logger.info(f"\n[{i}/{len(stock_data)}] Starting {stock_info['ticker']}...")
+    # Process stocks: concurrent or sequential
+    if concurrent:
+        # Use concurrent orchestrator
+        orchestrator = ConcurrentBatchOrchestrator(
+            graph=graph,
+            max_concurrent=max_concurrent
+        )
 
-        # Create Stock-like object for process_stock
-        from types import SimpleNamespace
-        stock = SimpleNamespace(**stock_info)
+        summary = await orchestrator.run(
+            stocks=stock_data,
+            batch_run_id=batch_run_id,
+            batch_size=max_concurrent
+        )
 
-        result = await process_stock(stock, batch_run_id)
-        results.append(result)
+        results = [
+            {
+                "storage_status": r.storage_status,
+                "hook_word_count": r.hook_wc,
+                "medium_word_count": r.medium_wc,
+                "expanded_word_count": r.expanded_wc,
+                "hook_fact_check": {"overall_status": r.hook_fact_check} if r.hook_fact_check else None,
+                "medium_fact_check": {"overall_status": r.medium_fact_check} if r.medium_fact_check else None,
+                "expanded_fact_check": {"overall_status": r.expanded_fact_check} if r.expanded_fact_check else None,
+                "hook_retry_count": r.hook_retries,
+                "medium_retry_count": r.medium_retries,
+                "expanded_retry_count": r.expanded_retries
+            }
+            for r in summary["results"]
+        ]
+
+    else:
+        # Sequential processing
+        results = []
+        for i, stock_info in enumerate(stock_data, 1):
+            logger.info(f"\n[{i}/{len(stock_data)}] Starting {stock_info['ticker']}...")
+
+            # Create Stock-like object for process_stock
+            from types import SimpleNamespace
+            stock = SimpleNamespace(**stock_info)
+
+            result = await process_stock(stock, batch_run_id, graph)
+            results.append(result)
 
     # Calculate statistics
     end_time = datetime.utcnow()
@@ -182,7 +243,27 @@ async def run_batch(limit: int = None, ticker: str = None):
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Run Phase 2 batch stock processing")
+    parser = argparse.ArgumentParser(
+        description="Run Phase 2 batch stock processing",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Basic: Process first 5 stocks (no validation)
+  python3 src/batch/run_batch_phase2.py --limit 5
+
+  # With validation: Fact-checking and retry logic
+  python3 src/batch/run_batch_phase2.py --limit 5 --validate
+
+  # Concurrent: Process 5 stocks with 3 max concurrent
+  python3 src/batch/run_batch_phase2.py --limit 5 --concurrent --max-concurrent 3
+
+  # Full power: Validation + concurrency
+  python3 src/batch/run_batch_phase2.py --limit 10 --validate --concurrent --max-concurrent 5
+
+  # Test single stock with all features
+  python3 src/batch/run_batch_phase2.py --ticker AAPL --validate
+        """
+    )
     parser.add_argument(
         "--limit",
         type=int,
@@ -193,6 +274,28 @@ if __name__ == "__main__":
         type=str,
         help="Process a single ticker (e.g., AAPL)"
     )
+    parser.add_argument(
+        "--validate",
+        action="store_true",
+        help="Enable fact-checking and retry logic with negative prompting"
+    )
+    parser.add_argument(
+        "--concurrent",
+        action="store_true",
+        help="Enable concurrent processing of stocks"
+    )
+    parser.add_argument(
+        "--max-concurrent",
+        type=int,
+        default=5,
+        help="Maximum number of concurrent stocks (default: 5)"
+    )
     args = parser.parse_args()
 
-    asyncio.run(run_batch(limit=args.limit, ticker=args.ticker))
+    asyncio.run(run_batch(
+        limit=args.limit,
+        ticker=args.ticker,
+        validate=args.validate,
+        concurrent=args.concurrent,
+        max_concurrent=args.max_concurrent
+    ))
