@@ -1,0 +1,38 @@
+_type: prompt
+input_variables:
+  - query
+  - fa_context
+
+template: |
+  Classify this financial advisor query as either "simple_retrieval" or "deep_research".
+
+  Query: {query}
+
+  FA Context: {fa_context}
+
+  Classification Rules:
+
+  SIMPLE_RETRIEVAL (use pre-generated summaries):
+  - Explicit ticker mentioned with no analysis requested
+  - "Show me [TICKER]"
+  - "What happened with [TICKER]?"
+  - "Latest news on [TICKER]"
+  - Dashboard/detail view loads
+
+  DEEP_RESEARCH (requires real-time analysis):
+  - Multi-stock comparison
+  - Household-specific impact assessment
+  - "How will [event] affect my clients holding [TICKER]?"
+  - Cross-reference questions
+  - Personalized recommendations
+  - No specific ticker mentioned
+  - Complex analytical questions
+
+  Output JSON:
+  {{
+    "classification": "simple_retrieval|deep_research",
+    "confidence": 0.0-1.0,
+    "reasoning": "brief explanation"
+  }}
+
+  If uncertain, default to "deep_research" for better quality.
