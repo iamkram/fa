@@ -2,8 +2,9 @@ from typing import List, Dict, Any, Optional
 import numpy as np
 from pgvector.psycopg2 import register_vector
 import psycopg2
-from psycopg2.extras import execute_values
+from psycopg2.extras import execute_values, Json
 import logging
+import json
 
 from src.config.settings import get_settings
 
@@ -83,7 +84,7 @@ class PgVectorClient:
                 SET embedding = EXCLUDED.embedding,
                     text = EXCLUDED.text,
                     metadata = EXCLUDED.metadata
-            """, (id, np.array(embedding), text, metadata))
+            """, (id, np.array(embedding), text, Json(metadata)))
             self.conn.commit()
 
     def bulk_insert(
@@ -94,7 +95,7 @@ class PgVectorClient:
         """Bulk insert vectors"""
         table_name = f"vectors_{namespace}"
         values = [
-            (v['id'], np.array(v['embedding']), v['text'], v['metadata'])
+            (v['id'], np.array(v['embedding']), v['text'], Json(v['metadata']))
             for v in vectors
         ]
         with self.conn.cursor() as cur:

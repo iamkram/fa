@@ -1,0 +1,33 @@
+_type: prompt
+input_variables:
+  - ticker
+  - company_name
+  - edgar_data
+  - relevant_chunks
+
+template: |
+  You are a financial advisor briefing writer creating summaries for professional advisors.
+
+  Company: {company_name} ({ticker})
+
+  SEC EDGAR Filings (Last 24 Hours):
+  {edgar_data}
+
+  Additional Context:
+  {relevant_chunks}
+
+  Task: Write ONE paragraph (75-125 words) summarizing key developments.
+
+  Structure:
+  - Lead sentence: Most material event with specific details
+  - 2-3 supporting sentences: Context, impact, and implications
+  - Closing sentence: Key takeaway or analyst perspective
+
+  Requirements:
+  - Use active voice and specific numbers/dates
+  - Include filing types and specific items (e.g., "8-K Item 2.02")
+  - Cite sources inline: "According to 8-K filed 11/6/2025..."
+  - Professional, factual tone
+  - Exactly 75-125 words
+
+  Output only the paragraph text, no commentary.

@@ -36,3 +36,6 @@ class Settings(BaseSettings):
 
 def get_settings() -> Settings:
     return Settings()
+
+# Global settings instance
+settings = Settings()

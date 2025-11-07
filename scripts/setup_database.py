@@ -27,9 +27,9 @@ def setup():
 
         namespaces = ["bluematrix_reports", "edgar_filings", "factset_data"]
         for namespace in namespaces:
-            # Using 1536 dimensions (OpenAI text-embedding-3-small)
-            # pgvector indexes support max 2000 dimensions
-            pgvector.create_collection(namespace, dimension=1536)
+            # Using 3072 dimensions (OpenAI text-embedding-3-large)
+            # Note: No HNSW index for dimensions > 2000, but full table scan is acceptable for MVP
+            pgvector.create_collection(namespace, dimension=3072)
 
         pgvector.close()
 
