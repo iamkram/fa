@@ -3,6 +3,10 @@ from pydantic import BaseModel, Field
 from datetime import datetime
 import uuid
 
+# ============================================================================
+# Phase 1: EDGAR Models
+# ============================================================================
+
 class EdgarFiling(BaseModel):
     """Single EDGAR filing"""
     filing_type: str
@@ -112,3 +116,124 @@ class BatchGraphState(BaseModel):
     summary_id: Optional[str] = None
     storage_status: Optional[str] = None
     error_message: Optional[str] = None
+
+# ============================================================================
+# Phase 2: BlueMatrix Models
+# ============================================================================
+
+class AnalystReport(BaseModel):
+    """Single analyst report from BlueMatrix"""
+    report_id: str
+    analyst_firm: str
+    analyst_name: str
+    report_date: datetime
+    rating_change: Optional[str] = None  # "upgrade", "downgrade", "initiate", "reiterate"
+    previous_rating: Optional[str] = None
+    new_rating: Optional[str] = None
+    price_target: Optional[float] = None
+    previous_price_target: Optional[float] = None
+    key_points: List[str] = Field(default_factory=list)
+    full_text: str
+
+# ============================================================================
+# Phase 2: FactSet Models
+# ============================================================================
+
+class PriceData(BaseModel):
+    """Price and volume data from FactSet"""
+    date: datetime
+    open: float
+    close: float
+    high: float
+    low: float
+    volume: int
+    pct_change: float
+    volume_vs_avg: float  # Ratio of volume to 20-day average
+    volatility_percentile: float  # Where today's volatility ranks
+
+class FundamentalEvent(BaseModel):
+    """Earnings, guidance, dividend events"""
+    event_type: Literal["earnings", "guidance", "dividend", "other"]
+    timestamp: datetime
+    details: str
+
+# ============================================================================
+# Phase 2: Multi-Source Fact-Checking Models
+# ============================================================================
+
+class SourceFactCheckResult(BaseModel):
+    """Fact check result from a single source"""
+    source: Literal["bluematrix", "edgar", "factset"]
+    claims_checked: int
+    verified_count: int
+    failed_claims: List[Dict[str, Any]] = Field(default_factory=list)
+    pass_rate: float
+
+class TierFactCheckState(BaseModel):
+    """Fact check state for a specific tier"""
+    tier: Literal["hook", "medium", "expanded"]
+    bluematrix_result: Optional[SourceFactCheckResult] = None
+    edgar_result: Optional[SourceFactCheckResult] = None
+    factset_result: Optional[SourceFactCheckResult] = None
+    overall_status: Literal["passed", "failed", "pending"] = "pending"
+    overall_pass_rate: float = 0.0
+    failed_claims: List[Dict[str, Any]] = Field(default_factory=list)
+
+# ============================================================================
+# Phase 2: Enhanced BatchGraphState with Multi-Source Support
+# ============================================================================
+
+class BatchGraphStatePhase2(BaseModel):
+    """Complete state for Phase 2 batch processing with multi-source data"""
+    # Input
+    stock_id: str
+    ticker: str
+    company_name: str
+    batch_run_id: str
+    processing_date: datetime = Field(default_factory=datetime.utcnow)
+
+    # Data from all sources
+    edgar_filings: List[EdgarFiling] = Field(default_factory=list)
+    edgar_status: Optional[str] = None
+
+    bluematrix_reports: List[AnalystReport] = Field(default_factory=list)
+    bluematrix_status: Optional[str] = None
+
+    factset_price_data: Optional[PriceData] = None
+    factset_events: List[FundamentalEvent] = Field(default_factory=list)
+    factset_status: Optional[str] = None
+
+    # Vectorization (separate namespaces per source)
+    edgar_vector_ids: List[str] = Field(default_factory=list)
+    bluematrix_vector_ids: List[str] = Field(default_factory=list)
+    factset_vector_ids: List[str] = Field(default_factory=list)
+
+    # Summaries (all three tiers)
+    hook_summary: Optional[str] = None
+    hook_word_count: int = 0
+
+    medium_summary: Optional[str] = None
+    medium_word_count: int = 0
+
+    expanded_summary: Optional[str] = None
+    expanded_word_count: int = 0
+
+    # Fact checking for each tier
+    hook_fact_check: Optional[TierFactCheckState] = None
+    medium_fact_check: Optional[TierFactCheckState] = None
+    expanded_fact_check: Optional[TierFactCheckState] = None
+
+    # Retry tracking (for future phase 2b)
+    hook_retry_count: int = 0
+    medium_retry_count: int = 0
+    expanded_retry_count: int = 0
+
+    hook_corrections: List[str] = Field(default_factory=list)
+    medium_corrections: List[str] = Field(default_factory=list)
+    expanded_corrections: List[str] = Field(default_factory=list)
+
+    # Output
+    summary_id: Optional[str] = None
+    storage_status: Optional[str] = None
+    error_message: Optional[str] = None
+    total_processing_time_ms: int = 0

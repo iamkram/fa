@@ -1,17 +1,17 @@
 from langchain_core.runnables import RunnableConfig
-from typing import Dict, Any
+from typing import Dict, Any, Union
 import asyncio
 import uuid
 import logging
 
-from src.batch.state import BatchGraphState
+from src.batch.state import BatchGraphState, BatchGraphStatePhase2
 from src.shared.utils.chunking import chunk_text, generate_embeddings
 from src.shared.vector_store.pgvector_client import PgVectorClient
 
 logger = logging.getLogger(__name__)
 
 
-def vectorize_edgar_node(state: BatchGraphState, config: RunnableConfig) -> Dict[str, Any]:
+def vectorize_edgar_node(state: Union[BatchGraphState, BatchGraphStatePhase2], config: RunnableConfig) -> Dict[str, Any]:
     """Vectorize EDGAR filings and store in pgvector
 
     Args:
@@ -73,7 +73,10 @@ def vectorize_edgar_node(state: BatchGraphState, config: RunnableConfig) -> Dict
 
         logger.info(f"✅ Vectorized {len(vector_ids)} chunks for {state.ticker}")
 
-        return {"vector_ids": vector_ids}
+        return {
+            "vector_ids": vector_ids,  # Phase 1 compatibility
+            "edgar_vector_ids": vector_ids  # Phase 2 compatibility
+        }
 
     except Exception as e:
         logger.error(f"❌ Vectorization failed for {state.ticker}: {str(e)}")

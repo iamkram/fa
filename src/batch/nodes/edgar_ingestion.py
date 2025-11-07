@@ -1,9 +1,9 @@
 from langchain_core.runnables import RunnableConfig
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Union
 from datetime import datetime, timedelta
 import logging
 
-from src.batch.state import BatchGraphState, EdgarFiling
+from src.batch.state import BatchGraphState, BatchGraphStatePhase2, EdgarFiling
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,7 @@ async def fetch_edgar_filings(
         return []
 
 
-def edgar_ingestion_node(state: BatchGraphState, config: RunnableConfig) -> Dict[str, Any]:
+def edgar_ingestion_node(state: Union[BatchGraphState, BatchGraphStatePhase2], config: RunnableConfig) -> Dict[str, Any]:
     """LangGraph node for EDGAR data ingestion
 
     Args:
