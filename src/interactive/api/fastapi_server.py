@@ -4,24 +4,25 @@ FastAPI Server for Interactive Queries
 Provides REST API and WebSocket endpoints for real-time FA queries.
 """
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Dict, Any, Optional
+import os
 import logging
 import asyncio
 from datetime import datetime
-import os
+from typing import Dict, Any, Optional
 
+# IMPORTANT: Set LangSmith environment variables BEFORE importing LangChain components
 from src.config.settings import settings
-from src.interactive.graphs.interactive_graph import interactive_graph
-from src.interactive.state import InteractiveGraphState
-from src.shared.utils.redis_client import redis_session_manager
-
-# Set LangSmith environment variables for tracing
 os.environ["LANGCHAIN_TRACING_V2"] = str(settings.langsmith_tracing_v2)
 os.environ["LANGCHAIN_API_KEY"] = settings.langsmith_api_key
 os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
+
+# Now import LangChain-dependent modules
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+from src.interactive.graphs.interactive_graph import interactive_graph
+from src.interactive.state import InteractiveGraphState
+from src.shared.utils.redis_client import redis_session_manager
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
