@@ -11,14 +11,23 @@ from typing import Dict, Any, Optional
 import logging
 import asyncio
 from datetime import datetime
+import os
 
+from src.config.settings import settings
 from src.interactive.graphs.interactive_graph import interactive_graph
 from src.interactive.state import InteractiveGraphState
 from src.shared.utils.redis_client import redis_session_manager
 
+# Set LangSmith environment variables for tracing
+os.environ["LANGCHAIN_TRACING_V2"] = str(settings.langsmith_tracing_v2)
+os.environ["LANGCHAIN_API_KEY"] = settings.langsmith_api_key
+os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
+
 # Setup logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+logger.info(f"LangSmith tracing enabled: {settings.langsmith_tracing_v2}")
+logger.info(f"LangSmith project: {settings.langsmith_project}")
 
 # Create FastAPI app
 app = FastAPI(
