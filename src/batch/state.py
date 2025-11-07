@@ -1,7 +1,8 @@
-from typing import List, Dict, Any, Optional, Literal
+from typing import List, Dict, Any, Optional, Literal, Annotated
 from pydantic import BaseModel, Field
 from datetime import datetime
 import uuid
+import operator
 
 # ============================================================================
 # Phase 1: EDGAR Models
@@ -192,21 +193,21 @@ class BatchGraphStatePhase2(BaseModel):
     batch_run_id: str
     processing_date: datetime = Field(default_factory=datetime.utcnow)
 
-    # Data from all sources
-    edgar_filings: List[EdgarFiling] = Field(default_factory=list)
+    # Data from all sources (Annotated for parallel updates)
+    edgar_filings: Annotated[List[EdgarFiling], operator.add] = Field(default_factory=list)
     edgar_status: Optional[str] = None
 
-    bluematrix_reports: List[AnalystReport] = Field(default_factory=list)
+    bluematrix_reports: Annotated[List[AnalystReport], operator.add] = Field(default_factory=list)
     bluematrix_status: Optional[str] = None
 
     factset_price_data: Optional[PriceData] = None
-    factset_events: List[FundamentalEvent] = Field(default_factory=list)
+    factset_events: Annotated[List[FundamentalEvent], operator.add] = Field(default_factory=list)
     factset_status: Optional[str] = None
 
-    # Vectorization (separate namespaces per source)
-    edgar_vector_ids: List[str] = Field(default_factory=list)
-    bluematrix_vector_ids: List[str] = Field(default_factory=list)
-    factset_vector_ids: List[str] = Field(default_factory=list)
+    # Vectorization (separate namespaces per source, Annotated for parallel updates)
+    edgar_vector_ids: Annotated[List[str], operator.add] = Field(default_factory=list)
+    bluematrix_vector_ids: Annotated[List[str], operator.add] = Field(default_factory=list)
+    factset_vector_ids: Annotated[List[str], operator.add] = Field(default_factory=list)
 
     # Summaries (all three tiers)
     hook_summary: Optional[str] = None
@@ -228,9 +229,9 @@ class BatchGraphStatePhase2(BaseModel):
     medium_retry_count: int = 0
     expanded_retry_count: int = 0
 
-    hook_corrections: List[str] = Field(default_factory=list)
-    medium_corrections: List[str] = Field(default_factory=list)
-    expanded_corrections: List[str] = Field(default_factory=list)
+    hook_corrections: Annotated[List[str], operator.add] = Field(default_factory=list)
+    medium_corrections: Annotated[List[str], operator.add] = Field(default_factory=list)
+    expanded_corrections: Annotated[List[str], operator.add] = Field(default_factory=list)
 
     # Output
     summary_id: Optional[str] = None

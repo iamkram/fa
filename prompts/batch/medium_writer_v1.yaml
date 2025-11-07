@@ -2,7 +2,9 @@ _type: prompt
 input_variables:
   - ticker
   - company_name
-  - edgar_data
+  - edgar_summary
+  - bluematrix_summary
+  - factset_summary
   - relevant_chunks
 
 template: |
@@ -10,24 +12,31 @@ template: |
 
   Company: {company_name} ({ticker})
 
-  SEC EDGAR Filings (Last 24 Hours):
-  {edgar_data}
+  === SEC EDGAR Filings (Last 24 Hours) ===
+  {edgar_summary}
 
-  Additional Context:
+  === Analyst Research (BlueMatrix) ===
+  {bluematrix_summary}
+
+  === Market Data (FactSet) ===
+  {factset_summary}
+
+  === Additional Context (RAG) ===
   {relevant_chunks}
 
-  Task: Write ONE paragraph (75-125 words) summarizing key developments.
+  Task: Write ONE paragraph (75-125 words) summarizing the most material developments across all sources.
 
   Structure:
-  - Lead sentence: Most material event with specific details
-  - 2-3 supporting sentences: Context, impact, and implications
-  - Closing sentence: Key takeaway or analyst perspective
+  - Lead sentence: Most material event with specific details (prioritize: regulatory filings > analyst actions > price movements)
+  - 2-3 supporting sentences: Context from other sources, impact, and implications
+  - Closing sentence: Key takeaway or forward-looking perspective
 
   Requirements:
   - Use active voice and specific numbers/dates
-  - Include filing types and specific items (e.g., "8-K Item 2.02")
-  - Cite sources inline: "According to 8-K filed 11/6/2025..."
+  - Synthesize across sources (e.g., "Following the 8-K filing, Goldman upgraded the stock...")
+  - Cite sources inline: "per 8-K filed 11/6", "Goldman Sachs noted", "stock gained 5.2%"
   - Professional, factual tone
   - Exactly 75-125 words
+  - If a source has no data, omit it (don't mention the absence)
 
   Output only the paragraph text, no commentary.

@@ -1,5 +1,5 @@
 """
-Parallel data ingestion using LangGraph Send() pattern
+Parallel data ingestion using LangGraph parallel edges
 
 This graph processes EDGAR, BlueMatrix, and FactSet data sources in parallel,
 then aggregates results before continuing to summary generation.
@@ -18,51 +18,6 @@ from src.batch.nodes.factset_ingestion import factset_ingestion_node
 from src.batch.nodes.vectorize_factset import vectorize_factset_node
 
 logger = logging.getLogger(__name__)
-
-# ============================================================================
-# Individual Source Subgraphs
-# ============================================================================
-
-def create_edgar_subgraph():
-    """Subgraph for EDGAR ingestion + vectorization"""
-    builder = StateGraph(BatchGraphStatePhase2)
-
-    builder.add_node("edgar_ingest", edgar_ingestion_node)
-    builder.add_node("edgar_vectorize", vectorize_edgar_node)
-
-    builder.add_edge(START, "edgar_ingest")
-    builder.add_edge("edgar_ingest", "edgar_vectorize")
-    builder.add_edge("edgar_vectorize", END)
-
-    return builder.compile()
-
-
-def create_bluematrix_subgraph():
-    """Subgraph for BlueMatrix ingestion + vectorization"""
-    builder = StateGraph(BatchGraphStatePhase2)
-
-    builder.add_node("bluematrix_ingest", bluematrix_ingestion_node)
-    builder.add_node("bluematrix_vectorize", vectorize_bluematrix_node)
-
-    builder.add_edge(START, "bluematrix_ingest")
-    builder.add_edge("bluematrix_ingest", "bluematrix_vectorize")
-    builder.add_edge("bluematrix_vectorize", END)
-
-    return builder.compile()
-
-
-def create_factset_subgraph():
-    """Subgraph for FactSet ingestion + vectorization"""
-    builder = StateGraph(BatchGraphStatePhase2)
-
-    builder.add_node("factset_ingest", factset_ingestion_node)
-    builder.add_node("factset_vectorize", vectorize_factset_node)
-
-    builder.add_edge(START, "factset_ingest")
-    builder.add_edge("factset_ingest", "factset_vectorize")
-    builder.add_edge("factset_vectorize", END)
-
-    return builder.compile()
 
 
 # ============================================================================
@@ -105,29 +60,42 @@ def create_parallel_ingestion_graph():
     Create graph with parallel data source processing
 
     Architecture:
-    START → [EDGAR subgraph, BlueMatrix subgraph, FactSet subgraph] → Aggregate → END
+    START → [EDGAR ingest, BlueMatrix ingest, FactSet ingest] (parallel)
+         → [EDGAR vectorize, BlueMatrix vectorize, FactSet vectorize] (parallel)
+         → Aggregate
+         → END
 
-    All three subgraphs run in parallel using LangGraph's built-in parallelization.
+    Parallel execution using multiple edges from START.
     """
     builder = StateGraph(BatchGraphStatePhase2)
 
-    # Add the subgraphs as nodes
-    builder.add_node("edgar_pipeline", create_edgar_subgraph())
-    builder.add_node("bluematrix_pipeline", create_bluematrix_subgraph())
-    builder.add_node("factset_pipeline", create_factset_subgraph())
+    # Add individual ingestion nodes
+    builder.add_node("edgar_ingest", edgar_ingestion_node)
+    builder.add_node("bluematrix_ingest", bluematrix_ingestion_node)
+    builder.add_node("factset_ingest", factset_ingestion_node)
+
+    # Add individual vectorization nodes
+    builder.add_node("edgar_vectorize", vectorize_edgar_node)
+    builder.add_node("bluematrix_vectorize", vectorize_bluematrix_node)
+    builder.add_node("factset_vectorize", vectorize_factset_node)
 
     # Add aggregation node
     builder.add_node("aggregate", aggregate_sources)
 
-    # Connect the graph - parallel execution
-    builder.add_edge(START, "edgar_pipeline")
-    builder.add_edge(START, "bluematrix_pipeline")
-    builder.add_edge(START, "factset_pipeline")
+    # Parallel ingestion from START
+    builder.add_edge(START, "edgar_ingest")
+    builder.add_edge(START, "bluematrix_ingest")
+    builder.add_edge(START, "factset_ingest")
 
-    # All pipelines feed into aggregate
-    builder.add_edge("edgar_pipeline", "aggregate")
-    builder.add_edge("bluematrix_pipeline", "aggregate")
-    builder.add_edge("factset_pipeline", "aggregate")
+    # Sequential within each pipeline
+    builder.add_edge("edgar_ingest", "edgar_vectorize")
+    builder.add_edge("bluematrix_ingest", "bluematrix_vectorize")
+    builder.add_edge("factset_ingest", "factset_vectorize")
+
+    # All vectorization nodes feed into aggregate
+    builder.add_edge("edgar_vectorize", "aggregate")
+    builder.add_edge("bluematrix_vectorize", "aggregate")
+    builder.add_edge("factset_vectorize", "aggregate")
 
     builder.add_edge("aggregate", END)
 

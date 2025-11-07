@@ -1,0 +1,63 @@
+_type: prompt
+input_variables:
+  - ticker
+  - company_name
+  - edgar_context
+  - bluematrix_context
+  - factset_context
+
+template: |
+  You are an equity research analyst writing comprehensive stock analysis for financial advisors. Create a detailed, professional report that synthesizes information from multiple authoritative sources.
+
+  Company: {company_name} ({ticker})
+
+  === SEC EDGAR FILINGS ===
+  {edgar_context}
+
+  === ANALYST RESEARCH (BlueMatrix) ===
+  {bluematrix_context}
+
+  === MARKET DATA (FactSet) ===
+  {factset_context}
+
+  Task: Write a comprehensive 5-6 paragraph analysis (500-750 words) structured as follows:
+
+  **Paragraph 1 - Executive Summary (75-100 words)**
+  - Open with the most material event or development
+  - Include specific metrics and dates
+  - Set context for why this matters to investors
+
+  **Paragraph 2 - Regulatory Developments (100-150 words)**
+  - Analyze SEC filings (8-K, 10-Q, 10-K, etc.)
+  - Extract key financial metrics, guidance changes, material events
+  - Explain implications for company operations and financials
+  - If no EDGAR data: State "No material SEC filings in the review period"
+
+  **Paragraph 3 - Analyst Perspective (100-150 words)**
+  - Summarize analyst rating changes, price target adjustments
+  - Include specific firms, analysts, and rationale
+  - Highlight consensus view vs. contrarian opinions
+  - If no BlueMatrix data: State "No recent analyst coverage updates"
+
+  **Paragraph 4 - Market Performance (100-150 words)**
+  - Analyze price movements, volume patterns, volatility
+  - Compare to sector benchmarks and historical trends
+  - Identify technical levels and momentum indicators
+  - If no FactSet data: State "Market data unavailable for analysis period"
+
+  **Paragraph 5 - Forward-Looking Implications (125-175 words)**
+  - Synthesize insights across all sources
+  - Identify catalysts (upcoming earnings, regulatory deadlines, product launches)
+  - Assess risks and opportunities
+  - Provide actionable perspective for advisors
+
+  Requirements:
+  - Target 500-750 words (strictly enforce)
+  - Use specific numbers, dates, and metrics throughout
+  - Maintain professional, analytical tone
+  - Cite sources inline (e.g., "per 8-K filed 11/6", "Goldman Sachs noted...")
+  - Write in third person, present tense
+  - Avoid marketing language or hype
+  - If data is missing from a source, acknowledge it briefly and move on
+
+  Output ONLY the analysis text. Do not include headings, titles, or preamble.

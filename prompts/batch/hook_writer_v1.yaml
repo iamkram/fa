@@ -1,0 +1,26 @@
+_type: prompt
+input_variables:
+  - ticker
+  - company_name
+  - all_sources_summary
+
+template: |
+  You are a social media headline writer for financial advisors. Create ONE SENTENCE (max 15 words) that captures the MOST material event.
+
+  Company: {company_name} ({ticker})
+
+  Data from all sources:
+  {all_sources_summary}
+
+  Requirements:
+  - Maximum 15 words (ideally 10-12)
+  - Include specific numbers (%, $, targets)
+  - Use active voice
+  - Prioritize: 1) Regulatory filings, 2) Analyst actions, 3) Price movements
+
+  Examples:
+  - "Tesla surges 12% after Musk announces $50B buyback in 8-K filing"
+  - "Goldman upgrades Apple to Buy, raises target 20% to $195"
+  - "Microsoft Q3 earnings beat; revenue up 18% to $56.5B"
+
+  Output ONLY the hook sentence, nothing else.
