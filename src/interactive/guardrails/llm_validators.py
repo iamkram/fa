@@ -8,6 +8,7 @@ Uses LangSmith prompts with async execution and caching.
 import logging
 import json
 import hashlib
+import time
 from typing import Dict, Any, Optional, List
 from functools import lru_cache
 from datetime import datetime, timedelta
@@ -17,6 +18,7 @@ from langsmith import traceable
 
 from src.config.settings import settings
 from src.shared.utils.prompt_manager import prompt_manager
+from src.shared.monitoring.guardrail_metrics import guardrail_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -60,7 +62,9 @@ class LLMGuardrailValidator:
         self,
         prompt_name: str,
         inputs: Dict[str, Any],
-        use_cache: bool = True
+        use_cache: bool = True,
+        session_id: str = None,
+        query_id: str = None
     ) -> Dict[str, Any]:
         """
         Run LLM-based validation using a LangSmith prompt
@@ -69,16 +73,37 @@ class LLMGuardrailValidator:
             prompt_name: Name of the prompt to use
             inputs: Input variables for the prompt
             use_cache: Whether to use caching (default: True)
+            session_id: Optional session ID for metrics tracking
+            query_id: Optional query ID for metrics tracking
 
         Returns:
             Parsed JSON response from LLM
         """
+        start_time = time.time()
+        cache_hit = False
+        success = True
+        error_msg = None
+
         try:
             # Check cache first
             cache_key = self._get_cache_key(prompt_name, inputs)
             if use_cache:
                 cached = self._get_from_cache(cache_key)
                 if cached is not None:
+                    cache_hit = True
+                    latency_ms = int((time.time() - start_time) * 1000)
+
+                    # Track metrics if session info provided
+                    if session_id and query_id:
+                        guardrail_metrics.track_llm_validation_performance(
+                            validation_type=prompt_name,
+                            session_id=session_id,
+                            query_id=query_id,
+                            latency_ms=latency_ms,
+                            cache_hit=True,
+                            success=True
+                        )
+
                     return cached
 
             # Get prompt from LangSmith (with fallback)
@@ -96,10 +121,40 @@ class LLMGuardrailValidator:
             if use_cache:
                 self._set_cache(cache_key, result)
 
+            latency_ms = int((time.time() - start_time) * 1000)
+
+            # Track metrics if session info provided
+            if session_id and query_id:
+                guardrail_metrics.track_llm_validation_performance(
+                    validation_type=prompt_name,
+                    session_id=session_id,
+                    query_id=query_id,
+                    latency_ms=latency_ms,
+                    cache_hit=False,
+                    success=True
+                )
+
             return result
 
         except Exception as e:
+            success = False
+            error_msg = str(e)
+            latency_ms = int((time.time() - start_time) * 1000)
+
             logger.error(f"LLM validation failed for {prompt_name}: {e}")
+
+            # Track metrics if session info provided
+            if session_id and query_id:
+                guardrail_metrics.track_llm_validation_performance(
+                    validation_type=prompt_name,
+                    session_id=session_id,
+                    query_id=query_id,
+                    latency_ms=latency_ms,
+                    cache_hit=cache_hit,
+                    success=False,
+                    error=error_msg
+                )
+
             return self._get_fallback_response(prompt_name)
 
     def _parse_json_response(self, content: str) -> Dict[str, Any]:

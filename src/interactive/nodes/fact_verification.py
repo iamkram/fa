@@ -13,6 +13,7 @@ import re
 
 from src.interactive.state import InteractiveGraphState
 from src.interactive.guardrails import detect_hallucinations
+from src.shared.monitoring.guardrail_metrics import guardrail_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -217,6 +218,19 @@ def fact_verification_node(state: InteractiveGraphState, config) -> Dict[str, An
         f"LLM: {'yes' if llm_verification_performed else 'no'})"
     )
 
+    # Track metrics
+    source_count = len(sources) if 'sources' in locals() else 0
+    guardrail_metrics.track_fact_verification(
+        session_id=state.session_id,
+        query_id=state.query_id if hasattr(state, 'query_id') else state.session_id,
+        confidence_score=final_confidence,
+        verification_passed=verification_passed,
+        llm_performed=llm_verification_performed,
+        source_count=source_count,
+        hallucination_details=hallucination_details if hallucination_details else None,
+        processing_time_ms=verification_time
+    )
+
     # Prepare detailed verification report
     verification_report = {
         "confidence_score": final_confidence,
@@ -224,7 +238,7 @@ def fact_verification_node(state: InteractiveGraphState, config) -> Dict[str, An
         "llm_verification_performed": llm_verification_performed,
         "flags": flags,
         "hallucination_details": hallucination_details if hallucination_details else None,
-        "source_count": len(sources) if 'sources' in locals() else 0,
+        "source_count": source_count,
         "verification_time_ms": verification_time
     }
 

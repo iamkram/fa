@@ -12,6 +12,7 @@ Uses hybrid approach: fast keyword checks + LLM validation for thorough analysis
 
 import logging
 import asyncio
+import time
 from typing import Dict, Any, List
 
 from src.interactive.state import InteractiveGraphState, GuardrailFlag, PIIFlag
@@ -20,6 +21,7 @@ from src.interactive.guardrails import (
     detect_hallucinations,
     validate_compliance
 )
+from src.shared.monitoring.guardrail_metrics import guardrail_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -65,12 +67,17 @@ def output_guardrail_node(state: InteractiveGraphState, config) -> Dict[str, Any
     """Screen generated response for safety issues (hybrid keyword + LLM)"""
     logger.info(f"[Guardrails-Output] Checking response for FA {state.fa_id}")
 
+    start_time = time.time()
     response = state.response_text
     if not response:
         return {"output_safe": True}
 
     flags = []
     pii_flags_list = []
+    llm_performed = False
+    pii_count = 0
+    hallucination_count = 0
+    compliance_count = 0
 
     # ========================================================================
     # STAGE 1: Fast Keyword/Regex Checks
@@ -81,6 +88,7 @@ def output_guardrail_node(state: InteractiveGraphState, config) -> Dict[str, Any
     pii_found = pii_detector.detect(response)
 
     if pii_found:
+        pii_count = len(pii_found)
         for pii_type, pii_text in pii_found:
             flags.append(GuardrailFlag(
                 flag_type="pii",
@@ -144,12 +152,15 @@ def output_guardrail_node(state: InteractiveGraphState, config) -> Dict[str, Any
             state.query_text,
             retrieved_docs
         ))
+        llm_performed = bool(llm_results)  # Mark LLM as performed if we got results
 
         # Process LLM hallucination results
         if "hallucination" in llm_results:
             hallucination_result = llm_results["hallucination"]
             if hallucination_result.get("hallucinations_detected"):
-                for item in hallucination_result.get("hallucination_items", []):
+                hallucination_items = hallucination_result.get("hallucination_items", [])
+                hallucination_count += len(hallucination_items)
+                for item in hallucination_items:
                     severity = item.get("severity", "medium")
                     flags.append(GuardrailFlag(
                         flag_type="hallucination",
@@ -157,20 +168,22 @@ def output_guardrail_node(state: InteractiveGraphState, config) -> Dict[str, Any
                         detail=f"Hallucination (LLM): {item.get('claim')} - {item.get('reason')}",
                         action_taken="flag" if severity == "low" else "warn"
                     ))
-                logger.warning(f"[Guardrails-Output] Hallucinations detected (LLM): {len(hallucination_result.get('hallucination_items', []))} items")
+                logger.warning(f"[Guardrails-Output] Hallucinations detected (LLM): {len(hallucination_items)} items")
 
         # Process LLM compliance results
         if "compliance" in llm_results:
             compliance_result = llm_results["compliance"]
             if not compliance_result.get("compliant"):
-                for violation in compliance_result.get("violations", []):
+                violations = compliance_result.get("violations", [])
+                compliance_count += len(violations)
+                for violation in violations:
                     flags.append(GuardrailFlag(
                         flag_type="compliance",
                         severity=violation.get("severity", "medium"),
                         detail=f"Compliance violation (LLM): {violation.get('rule')} - {violation.get('issue')}",
                         action_taken="flag"
                     ))
-                logger.error(f"[Guardrails-Output] Compliance violations (LLM): {len(compliance_result.get('violations', []))} violations")
+                logger.error(f"[Guardrails-Output] Compliance violations (LLM): {len(violations)} violations")
 
             # Log warnings
             for warning in compliance_result.get("warnings", []):
@@ -188,6 +201,20 @@ def output_guardrail_node(state: InteractiveGraphState, config) -> Dict[str, Any
     output_safe = len(high_severity_blocks) == 0
 
     logger.info(f"[Guardrails-Output] Result: {'✅ SAFE' if output_safe else '⚠️ FLAGGED'} (keyword + LLM)")
+
+    # Track metrics
+    processing_time_ms = int((time.time() - start_time) * 1000)
+    guardrail_metrics.track_output_guardrail(
+        session_id=state.session_id,
+        query_id=state.query_id if hasattr(state, 'query_id') else state.session_id,
+        flags=flags,
+        output_safe=output_safe,
+        llm_performed=llm_performed,
+        processing_time_ms=processing_time_ms,
+        pii_count=pii_count,
+        hallucination_count=hallucination_count,
+        compliance_count=compliance_count
+    )
 
     return {
         "output_safe": output_safe,

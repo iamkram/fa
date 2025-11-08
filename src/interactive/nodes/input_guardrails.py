@@ -12,6 +12,7 @@ Uses hybrid approach: fast regex checks + LLM validation for edge cases.
 
 import logging
 import asyncio
+import time
 from typing import Dict, Any
 
 from src.interactive.state import InteractiveGraphState, GuardrailFlag
@@ -22,6 +23,7 @@ from src.interactive.guardrails import (
     detect_prompt_injection,
     classify_topic
 )
+from src.shared.monitoring.guardrail_metrics import guardrail_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -70,8 +72,10 @@ def input_guardrail_node(state: InteractiveGraphState, config) -> Dict[str, Any]
     """Screen user input for safety issues (hybrid regex + LLM)"""
     logger.info(f"[Guardrails-Input] Checking query for FA {state.fa_id}")
 
+    start_time = time.time()
     query = state.query_text
     flags = []
+    llm_performed = False
 
     # ========================================================================
     # STAGE 1: Fast Regex/Keyword Checks
@@ -159,6 +163,7 @@ def input_guardrail_node(state: InteractiveGraphState, config) -> Dict[str, Any]
     try:
         # Run LLM validations (async)
         llm_results = asyncio.run(_run_llm_validations(query, sanitized, regex_pii_detected))
+        llm_performed = bool(llm_results)  # Mark LLM as performed if we got results
 
         # Process LLM PII results
         if "pii" in llm_results:
@@ -217,6 +222,17 @@ def input_guardrail_node(state: InteractiveGraphState, config) -> Dict[str, Any]
     input_safe = len(high_severity_flags) == 0
 
     logger.info(f"[Guardrails-Input] Result: {'✅ SAFE' if input_safe else '🚫 BLOCKED'} (regex + LLM)")
+
+    # Track metrics
+    processing_time_ms = int((time.time() - start_time) * 1000)
+    guardrail_metrics.track_input_guardrail(
+        session_id=state.session_id,
+        query_id=state.query_id if hasattr(state, 'query_id') else state.session_id,
+        flags=flags,
+        input_safe=input_safe,
+        llm_performed=llm_performed,
+        processing_time_ms=processing_time_ms
+    )
 
     return {
         "input_safe": input_safe,
