@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     factset_api_key: Optional[str] = None
 
     # Application Settings
-    batch_max_concurrency: int = 50
+    batch_max_concurrency: int = 100  # Phase 4: Scaled to 100 for 1,000 stock processing
     batch_max_retries: int = 5
     interactive_query_timeout: int = 30
 

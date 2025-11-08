@@ -1,27 +1,46 @@
 from langchain_anthropic import ChatAnthropic
-from langchain_core.prompts import load_prompt
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 import asyncio
 import logging
 import time
 
 from src.batch.state import BatchGraphStatePhase2
 from src.config.settings import settings
+from src.shared.utils.prompt_manager import get_prompt
 
 logger = logging.getLogger(__name__)
 
 
 class HookWriterAgent:
-    """Agent for generating hook summaries (< 15 words)"""
+    """Agent for generating hook summaries (25-50 words)
 
-    def __init__(self):
+    Uses LangSmith prompt hub for centralized prompt management.
+    Prompts can be versioned and A/B tested without code changes.
+    """
+
+    def __init__(self, prompt_version: Optional[str] = None):
+        """
+        Initialize hook writer agent
+
+        Args:
+            prompt_version: Optional prompt version from LangSmith hub
+                          (default: latest version)
+        """
         self.llm = ChatAnthropic(
             model="claude-sonnet-4-20250514",
             temperature=0.5,  # Slightly higher for creativity
-            max_tokens=100,
+            max_tokens=150,  # Increased for 25-50 word target
             anthropic_api_key=settings.anthropic_api_key
         )
-        self.prompt = load_prompt("prompts/batch/hook_writer_v1.yaml")
+
+        # Load prompt from LangSmith hub
+        try:
+            self.prompt = get_prompt("hook_summary_writer", version=prompt_version)
+            logger.info(f"Loaded prompt from LangSmith: hook_summary_writer{f':{prompt_version}' if prompt_version else ''}")
+        except Exception as e:
+            logger.warning(f"Failed to load prompt from LangSmith: {e}")
+            logger.info("Using fallback prompt")
+            # Fallback is handled by get_prompt()
 
     async def generate(
         self,
@@ -29,30 +48,64 @@ class HookWriterAgent:
         company_name: str,
         state: BatchGraphStatePhase2
     ) -> tuple[str, int]:
-        """Generate hook summary"""
+        """Generate hook summary (25-50 words)"""
 
-        # Get most important context from all sources
-        all_sources_summary = self._create_source_summary(state)
+        # Generate summaries from raw source data
+        edgar_summary = self._summarize_edgar(state.edgar_filings)
+        bluematrix_summary = self._summarize_bluematrix(state.bluematrix_reports)
+        factset_summary = self._summarize_factset(state.factset_price_data, state.factset_events)
 
-        # Generate hook
-        messages = self.prompt.format(
-            ticker=ticker,
-            company_name=company_name,
-            all_sources_summary=all_sources_summary
-        )
+        # Generate hook using LangSmith prompt
+        messages = self.prompt.invoke({
+            "ticker": ticker,
+            "edgar_summary": edgar_summary,
+            "bluematrix_summary": bluematrix_summary,
+            "factset_summary": factset_summary
+        })
 
         response = await self.llm.ainvoke(messages)
         hook = response.content.strip()
 
-        # Validate word count
+        # Validate word count (25-50 words target)
         word_count = len(hook.split())
-        if word_count > 15:
-            logger.warning(f"Hook exceeds 15 words ({word_count}), regenerating...")
+        if word_count < 20 or word_count > 60:
+            logger.warning(f"Hook word count outside target ({word_count} words, target: 25-50)")
             # Try again with stricter instruction
-            hook = await self._regenerate_shorter(hook, ticker, company_name, all_sources_summary)
+            summary = f"EDGAR: {edgar_summary[:200]}... | BlueMatrix: {bluematrix_summary[:200]}... | FactSet: {factset_summary[:200]}..."
+            hook = await self._regenerate_shorter(hook, ticker, company_name, summary)
             word_count = len(hook.split())
 
         return hook, word_count
+
+    def _summarize_edgar(self, filings: list) -> str:
+        """Create summary from EDGAR filings"""
+        if not filings:
+            return "No recent EDGAR filings"
+
+        filing = filings[0]  # Most recent
+        return f"{filing.filing_type} filed on {filing.filing_date.strftime('%Y-%m-%d')}: {filing.full_text[:200] if filing.full_text else 'No content'}"
+
+    def _summarize_bluematrix(self, reports: list) -> str:
+        """Create summary from BlueMatrix reports"""
+        if not reports:
+            return "No recent analyst reports"
+
+        report = reports[0]  # Most recent
+        rating_info = f"{report.rating_change} to {report.new_rating}" if report.rating_change else report.new_rating
+        return f"{report.analyst_firm} {rating_info}, PT ${report.price_target}: {report.full_text[:200] if report.full_text else 'No content'}"
+
+    def _summarize_factset(self, price_data, events: list) -> str:
+        """Create summary from FactSet data"""
+        parts = []
+
+        if price_data:
+            parts.append(f"Price ${price_data.close:.2f} ({price_data.pct_change:+.1f}%)")
+
+        if events:
+            event = events[0]
+            parts.append(f"{event.event_type}: {event.details[:100]}")
+
+        return " | ".join(parts) if parts else "No recent FactSet data"
 
     def _create_source_summary(self, state: BatchGraphStatePhase2) -> str:
         """Create concise summary from all sources"""

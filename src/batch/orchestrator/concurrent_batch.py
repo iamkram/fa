@@ -26,6 +26,7 @@ class StockTask:
     ticker: str
     company_name: str
     batch_run_id: str
+    metadata: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -53,7 +54,7 @@ class ConcurrentBatchOrchestrator:
     def __init__(
         self,
         graph,
-        max_concurrent: int = 5,
+        max_concurrent: int = 100,
         retry_on_error: bool = True
     ):
         """
@@ -61,7 +62,7 @@ class ConcurrentBatchOrchestrator:
 
         Args:
             graph: The LangGraph graph to execute for each stock
-            max_concurrent: Maximum number of stocks to process concurrently
+            max_concurrent: Maximum number of stocks to process concurrently (default: 100 for Phase 4 production scaling)
             retry_on_error: Whether to retry failed stocks once
         """
         self.graph = graph
@@ -97,8 +98,29 @@ class ConcurrentBatchOrchestrator:
             )
 
             try:
-                # Run the graph
-                result = await self.graph.ainvoke(input_state.model_dump())
+                # Build LangSmith config
+                config = {
+                    "run_name": f"batch_{task.ticker}_{task.batch_run_id[:8]}",
+                    "metadata": {
+                        "batch_run_id": task.batch_run_id,
+                        "ticker": task.ticker,
+                        "company_name": task.company_name,
+                        "stock_id": task.stock_id,
+                        "mode": "batch",
+                        "timestamp": datetime.utcnow().isoformat(),
+                        **(task.metadata or {})
+                    },
+                    "tags": [
+                        "batch-processing",
+                        f"ticker:{task.ticker}",
+                        f"batch:{task.batch_run_id[:8]}",
+                        "phase2",
+                        "concurrent"
+                    ]
+                }
+
+                # Run the graph with LangSmith tracing
+                result = await self.graph.ainvoke(input_state.model_dump(), config=config)
 
                 # Extract results
                 end_time = datetime.utcnow()
@@ -194,7 +216,8 @@ class ConcurrentBatchOrchestrator:
         self,
         stocks: List[Dict[str, str]],
         batch_run_id: str,
-        batch_size: Optional[int] = None
+        batch_size: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Run concurrent batch processing for all stocks
 
@@ -202,6 +225,7 @@ class ConcurrentBatchOrchestrator:
             stocks: List of dicts with stock_id, ticker, company_name
             batch_run_id: Unique ID for this batch run
             batch_size: Size of each processing batch (default: max_concurrent)
+            metadata: Optional metadata to include in LangSmith traces
 
         Returns:
             Dict with summary statistics
@@ -209,13 +233,14 @@ class ConcurrentBatchOrchestrator:
         if batch_size is None:
             batch_size = self.max_concurrent
 
-        # Create tasks
+        # Create tasks with metadata
         tasks = [
             StockTask(
                 stock_id=stock['stock_id'],
                 ticker=stock['ticker'],
                 company_name=stock['company_name'],
-                batch_run_id=batch_run_id
+                batch_run_id=batch_run_id,
+                metadata=metadata
             )
             for stock in stocks
         ]

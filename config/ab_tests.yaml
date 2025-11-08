@@ -1,0 +1,172 @@
+# A/B Testing Configuration
+# Defines active experiments for prompt optimization and feature testing
+
+tests:
+  # Test 1: Summary tone optimization
+  summary_tone_test:
+    name: "Summary Tone Optimization"
+    description: "Test different tones for stock summaries"
+    status: "draft"  # Options: active, paused, completed, draft
+    start_date: "2025-02-01T00:00:00"
+    end_date: "2025-02-28T23:59:59"
+    control_variant: "control"
+
+    variants:
+      - name: "control"
+        description: "Current professional tone"
+        allocation_pct: 50.0
+        config:
+          summary_tone: "professional"
+          use_technical_language: true
+
+      - name: "conversational"
+        description: "More conversational, accessible tone"
+        allocation_pct: 50.0
+        config:
+          summary_tone: "conversational"
+          use_technical_language: false
+
+    metrics:
+      - "thumbs_up_rate"
+      - "follow_up_questions"
+      - "session_duration"
+      - "fa_satisfaction_score"
+
+  # Test 2: Citation density
+  citation_density_test:
+    name: "Citation Density Test"
+    description: "Test optimal number of citations in summaries"
+    status: "draft"
+    start_date: "2025-02-01T00:00:00"
+    end_date: "2025-03-01T23:59:59"
+    control_variant: "control"
+
+    variants:
+      - name: "control"
+        description: "Current citation density (1-2 per claim)"
+        allocation_pct: 33.3
+        config:
+          min_citations_per_claim: 1
+          max_citations_per_claim: 2
+
+      - name: "high_density"
+        description: "More citations (2-3 per claim)"
+        allocation_pct: 33.3
+        config:
+          min_citations_per_claim: 2
+          max_citations_per_claim: 3
+
+      - name: "low_density"
+        description: "Fewer citations (1 per major claim)"
+        allocation_pct: 33.4
+        config:
+          min_citations_per_claim: 1
+          max_citations_per_claim: 1
+
+    metrics:
+      - "trust_score"
+      - "read_time"
+      - "citation_click_rate"
+
+  # Test 3: Response tier routing
+  response_tier_test:
+    name: "Response Tier Routing Test"
+    description: "Test different thresholds for quick vs deep research"
+    status: "draft"
+    start_date: "2025-02-15T00:00:00"
+    end_date: "2025-03-15T23:59:59"
+    control_variant: "control"
+
+    variants:
+      - name: "control"
+        description: "Current routing logic"
+        allocation_pct: 50.0
+        config:
+          quick_answer_complexity_threshold: 0.3
+          deep_research_threshold: 0.7
+
+      - name: "aggressive_deep"
+        description: "Route more queries to deep research"
+        allocation_pct: 50.0
+        config:
+          quick_answer_complexity_threshold: 0.2
+          deep_research_threshold: 0.5
+
+    metrics:
+      - "response_time_ms"
+      - "answer_quality_score"
+      - "cost_per_query"
+      - "fa_satisfaction"
+
+  # Test 4: Model selection for hook summaries
+  hook_model_test:
+    name: "Hook Summary Model Test"
+    description: "Test Haiku vs Sonnet for hook summaries"
+    status: "draft"
+    start_date: "2025-02-01T00:00:00"
+    end_date: "2025-02-14T23:59:59"
+    control_variant: "sonnet"
+
+    variants:
+      - name: "sonnet"
+        description: "Use Sonnet for hook summaries (current)"
+        allocation_pct: 50.0
+        config:
+          hook_model: "claude-3-5-sonnet-20241022"
+
+      - name: "haiku"
+        description: "Use Haiku for hook summaries (cost optimization)"
+        allocation_pct: 50.0
+        config:
+          hook_model: "claude-3-5-haiku-20241022"
+
+    metrics:
+      - "summary_quality_score"
+      - "word_count_accuracy"
+      - "cost_per_summary"
+      - "generation_time_ms"
+
+  # Test 5: Hallucination detection threshold
+  hallucination_threshold_test:
+    name: "Hallucination Detection Threshold"
+    description: "Test different thresholds for hallucination flagging"
+    status: "draft"
+    start_date: "2025-03-01T00:00:00"
+    end_date: "2025-03-31T23:59:59"
+    control_variant: "control"
+
+    variants:
+      - name: "control"
+        description: "Current threshold (medium risk = 0.4)"
+        allocation_pct: 50.0
+        config:
+          hallucination_medium_risk_threshold: 0.4
+          hallucination_high_risk_threshold: 0.7
+
+      - name: "conservative"
+        description: "Lower thresholds (more aggressive)"
+        allocation_pct: 50.0
+        config:
+          hallucination_medium_risk_threshold: 0.3
+          hallucination_high_risk_threshold: 0.6
+
+    metrics:
+      - "false_positive_rate"
+      - "false_negative_rate"
+      - "summary_rejection_rate"
+      - "manual_review_time"
+
+# Global A/B test settings
+settings:
+  # Enable/disable A/B testing globally
+  enabled: true
+
+  # Log all exposures to LangSmith
+  log_exposures: true
+
+  # Log metrics to LangSmith
+  log_metrics: true
+
+  # Override: Force all users to specific variants (for debugging)
+  # Format: {"test_id": "variant_name"}
+  force_variants: {}

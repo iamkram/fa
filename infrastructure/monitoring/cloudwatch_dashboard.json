@@ -1,0 +1,344 @@
+{
+  "dashboardName": "FA-AI-System-Production",
+  "dashboardBody": {
+    "widgets": [
+      {
+        "type": "metric",
+        "x": 0,
+        "y": 0,
+        "width": 12,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "StocksProcessed", { "stat": "Sum", "label": "Total Stocks Processed" } ],
+            [ ".", "SuccessfulSummaries", { "stat": "Sum", "label": "Successful" } ],
+            [ ".", "FailedSummaries", { "stat": "Sum", "label": "Failed" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": false,
+          "region": "us-east-1",
+          "title": "Batch Processing Volume",
+          "period": 300,
+          "yAxis": {
+            "left": {
+              "label": "Count"
+            }
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 12,
+        "y": 0,
+        "width": 12,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "BatchSuccessRate", { "stat": "Average", "label": "Success Rate" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": false,
+          "region": "us-east-1",
+          "title": "Batch Success Rate",
+          "period": 300,
+          "yAxis": {
+            "left": {
+              "label": "Percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "annotations": {
+            "horizontal": [
+              {
+                "label": "Target SLA (95%)",
+                "value": 95,
+                "fill": "above"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 0,
+        "y": 6,
+        "width": 12,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "QueryCount", { "stat": "Sum", "label": "Total Queries" } ],
+            [ ".", "QueryCount", { "dimensions": { "ResponseTier": "quick" }, "stat": "Sum", "label": "Quick" } ],
+            [ ".", "QueryCount", { "dimensions": { "ResponseTier": "standard" }, "stat": "Sum", "label": "Standard" } ],
+            [ ".", "QueryCount", { "dimensions": { "ResponseTier": "deep" }, "stat": "Sum", "label": "Deep Research" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": true,
+          "region": "us-east-1",
+          "title": "Interactive Query Volume by Tier",
+          "period": 300,
+          "yAxis": {
+            "left": {
+              "label": "Queries"
+            }
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 12,
+        "y": 6,
+        "width": 12,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "QueryResponseTime", { "stat": "Average", "label": "Average" } ],
+            [ "...", { "stat": "p50", "label": "P50" } ],
+            [ "...", { "stat": "p90", "label": "P90" } ],
+            [ "...", { "stat": "p99", "label": "P99" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": false,
+          "region": "us-east-1",
+          "title": "Query Response Time (ms)",
+          "period": 300,
+          "yAxis": {
+            "left": {
+              "label": "Milliseconds"
+            }
+          },
+          "annotations": {
+            "horizontal": [
+              {
+                "label": "Target SLA (3s)",
+                "value": 3000,
+                "fill": "below"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 0,
+        "y": 12,
+        "width": 8,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "BatchCost", { "stat": "Sum", "label": "Batch Cost" } ],
+            [ ".", "LLMCost", { "dimensions": { "WorkloadType": "Interactive" }, "stat": "Sum", "label": "Interactive Cost" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": true,
+          "region": "us-east-1",
+          "title": "LLM Costs (USD)",
+          "period": 300,
+          "yAxis": {
+            "left": {
+              "label": "USD"
+            }
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 8,
+        "y": 12,
+        "width": 8,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "CostPerStock", { "stat": "Average", "label": "Cost per Stock" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": false,
+          "region": "us-east-1",
+          "title": "Cost per Stock (USD)",
+          "period": 300,
+          "yAxis": {
+            "left": {
+              "label": "USD"
+            }
+          },
+          "annotations": {
+            "horizontal": [
+              {
+                "label": "Target ($0.40)",
+                "value": 0.40,
+                "fill": "below"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 16,
+        "y": 12,
+        "width": 8,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "InputTokens", { "stat": "Sum", "label": "Input Tokens" } ],
+            [ ".", "OutputTokens", { "stat": "Sum", "label": "Output Tokens" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": false,
+          "region": "us-east-1",
+          "title": "Token Usage",
+          "period": 300,
+          "yAxis": {
+            "left": {
+              "label": "Tokens"
+            }
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 0,
+        "y": 18,
+        "width": 12,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "ErrorCount", { "stat": "Sum", "label": "Total Errors" } ],
+            [ ".", "ErrorCount", { "dimensions": { "Severity": "ERROR" }, "stat": "Sum", "label": "Errors" } ],
+            [ ".", "ErrorCount", { "dimensions": { "Severity": "CRITICAL" }, "stat": "Sum", "label": "Critical" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": true,
+          "region": "us-east-1",
+          "title": "Error Count by Severity",
+          "period": 300,
+          "yAxis": {
+            "left": {
+              "label": "Count"
+            }
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 12,
+        "y": 18,
+        "width": 12,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "GuardrailPassed", { "stat": "Sum", "label": "Passed" } ],
+            [ "FA-AI-System", "QueryCount", { "stat": "Sum", "label": "Total Queries" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": false,
+          "region": "us-east-1",
+          "title": "Guardrail Pass Rate",
+          "period": 300,
+          "yAxis": {
+            "left": {
+              "label": "Count"
+            }
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 0,
+        "y": 24,
+        "width": 8,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "CPUUsage", { "stat": "Average", "label": "CPU Usage" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": false,
+          "region": "us-east-1",
+          "title": "System CPU Usage (%)",
+          "period": 60,
+          "yAxis": {
+            "left": {
+              "label": "Percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "annotations": {
+            "horizontal": [
+              {
+                "label": "High CPU (80%)",
+                "value": 80,
+                "fill": "above"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 8,
+        "y": 24,
+        "width": 8,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "MemoryUsage", { "stat": "Average", "label": "Memory Usage" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": false,
+          "region": "us-east-1",
+          "title": "System Memory Usage (%)",
+          "period": 60,
+          "yAxis": {
+            "left": {
+              "label": "Percent",
+              "min": 0,
+              "max": 100
+            }
+          },
+          "annotations": {
+            "horizontal": [
+              {
+                "label": "High Memory (85%)",
+                "value": 85,
+                "fill": "above"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "type": "metric",
+        "x": 16,
+        "y": 24,
+        "width": 8,
+        "height": 6,
+        "properties": {
+          "metrics": [
+            [ "FA-AI-System", "ActiveConnections", { "stat": "Average", "label": "Active Connections" } ]
+          ],
+          "view": "timeSeries",
+          "stacked": false,
+          "region": "us-east-1",
+          "title": "Active Connections",
+          "period": 60,
+          "yAxis": {
+            "left": {
+              "label": "Count"
+            }
+          },
+          "annotations": {
+            "horizontal": [
+              {
+                "label": "Target Capacity (500)",
+                "value": 500,
+                "fill": "below"
+              }
+            ]
+          }
+        }
+      }
+    ]
+  }
+}

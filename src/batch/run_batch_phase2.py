@@ -31,7 +31,8 @@ from src.shared.models.database import Stock, BatchRunAudit
 # Set LangSmith environment variables for tracing
 os.environ["LANGCHAIN_TRACING_V2"] = str(settings.langsmith_tracing_v2)
 os.environ["LANGCHAIN_API_KEY"] = settings.langsmith_api_key
-os.environ["LANGCHAIN_PROJECT"] = settings.langsmith_project
+# Use batch-specific project for better organization
+os.environ["LANGCHAIN_PROJECT"] = f"{settings.langsmith_project}-batch"
 
 logging.basicConfig(
     level=logging.INFO,
@@ -63,8 +64,27 @@ async def process_stock(stock: Stock, batch_run_id: str, graph):
     )
 
     try:
-        # Run the graph
-        result = await graph.ainvoke(input_state.model_dump())
+        # Run the graph with LangSmith tracing configuration
+        result = await graph.ainvoke(
+            input_state.model_dump(),
+            config={
+                "run_name": f"batch_{stock.ticker}_{batch_run_id[:8]}",
+                "metadata": {
+                    "batch_run_id": batch_run_id,
+                    "ticker": stock.ticker,
+                    "company_name": stock.company_name,
+                    "stock_id": str(stock.stock_id),
+                    "mode": "batch",
+                    "timestamp": datetime.utcnow().isoformat()
+                },
+                "tags": [
+                    "batch-processing",
+                    f"ticker:{stock.ticker}",
+                    f"batch:{batch_run_id[:8]}",
+                    "phase2"
+                ]
+            }
+        )
 
         status = result.get('storage_status', 'unknown')
 
@@ -110,6 +130,19 @@ async def run_batch(
     """
     batch_run_id = str(uuid.uuid4())
     start_time = datetime.utcnow()
+
+    # Configure LangSmith metadata for this batch run
+    batch_metadata = {
+        "batch_run_id": batch_run_id,
+        "start_time": start_time.isoformat(),
+        "limit": limit,
+        "ticker": ticker,
+        "validate": validate,
+        "concurrent": concurrent,
+        "max_concurrent": max_concurrent,
+        "mode": "batch",
+        "environment": os.environ.get("ENVIRONMENT", "development")
+    }
 
     # Select graph based on validation flag
     graph = phase2_validation_graph if validate else phase2_graph
@@ -162,10 +195,16 @@ async def run_batch(
             max_concurrent=max_concurrent
         )
 
+        # Add LangSmith metadata to orchestrator
+        logger.info(f"LangSmith Tracing: Enabled")
+        logger.info(f"LangSmith Project: {os.environ.get('LANGCHAIN_PROJECT')}")
+        logger.info(f"Batch Run ID: {batch_run_id}")
+
         summary = await orchestrator.run(
             stocks=stock_data,
             batch_run_id=batch_run_id,
-            batch_size=max_concurrent
+            batch_size=max_concurrent,
+            metadata=batch_metadata
         )
 
         results = [
@@ -287,8 +326,8 @@ Examples:
     parser.add_argument(
         "--max-concurrent",
         type=int,
-        default=5,
-        help="Maximum number of concurrent stocks (default: 5)"
+        default=100,
+        help="Maximum number of concurrent stocks (default: 100 for Phase 4 production scaling)"
     )
     args = parser.parse_args()
 
