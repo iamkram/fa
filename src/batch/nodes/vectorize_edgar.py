@@ -82,7 +82,8 @@ def vectorize_edgar_node(state: Union[BatchGraphState, BatchGraphStatePhase2], c
         logger.error(f"❌ Vectorization failed for {state.ticker}: {str(e)}")
         return {
             "vector_ids": [],
-            "error_message": f"Vectorization error: {str(e)}"
+            "edgar_vector_ids": [],  # Phase 2 compatibility
+            "error_messages": [f"EDGAR vectorization error: {str(e)}"]
         }
 
     finally:

@@ -67,7 +67,7 @@ def vectorize_bluematrix_node(state: BatchGraphStatePhase2, config) -> Dict[str,
         logger.error(f"❌ BlueMatrix vectorization failed: {str(e)}")
         return {
             "bluematrix_vector_ids": [],
-            "error_message": str(e)
+            "error_messages": [f"BlueMatrix vectorization error: {str(e)}"]
         }
     finally:
         pgvector.close()

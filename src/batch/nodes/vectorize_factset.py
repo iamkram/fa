@@ -76,6 +76,9 @@ def vectorize_factset_node(state: BatchGraphStatePhase2, config) -> Dict[str, An
 
     except Exception as e:
         logger.error(f"❌ FactSet vectorization failed: {str(e)}")
-        return {"factset_vector_ids": [], "error_message": str(e)}
+        return {
+            "factset_vector_ids": [],
+            "error_messages": [f"FactSet vectorization error: {str(e)}"]
+        }
     finally:
         pgvector.close()

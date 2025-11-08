@@ -236,5 +236,5 @@ class BatchGraphStatePhase2(BaseModel):
     # Output
     summary_id: Optional[str] = None
     storage_status: Optional[str] = None
-    error_message: Optional[str] = None
+    error_messages: Annotated[List[str], operator.add] = Field(default_factory=list)  # Changed from single error_message to list for parallel nodes
     total_processing_time_ms: int = 0
