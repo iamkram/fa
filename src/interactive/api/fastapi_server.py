@@ -27,6 +27,8 @@ from src.interactive.graphs.interactive_graph import interactive_graph
 from src.interactive.state import InteractiveGraphState
 from src.shared.utils.redis_client import redis_session_manager
 from src.shared.monitoring.guardrail_metrics import guardrail_metrics
+from src.interactive.api.middleware import MaintenanceModeMiddleware
+from src.shared.utils.system_status import system_status_manager
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -49,6 +51,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Maintenance mode middleware (kill switch)
+app.add_middleware(MaintenanceModeMiddleware)
 
 
 # ============================================================================
@@ -74,6 +79,15 @@ class QueryResponse(BaseModel):
     citations: list = []
     pii_flags: list = []
     run_id: Optional[str] = None  # LangSmith run ID for feedback
+
+
+class KillSwitchRequest(BaseModel):
+    """Kill switch toggle request"""
+    enabled: bool
+    reason: str
+    initiated_by: str = "admin"
+    message: Optional[str] = None
+    expected_restoration: Optional[str] = None
 
 
 # ============================================================================
@@ -243,6 +257,138 @@ async def get_guardrails_metrics():
     except Exception as e:
         logger.error(f"Failed to retrieve guardrails metrics: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics: {str(e)}")
+
+
+# ============================================================================
+# Admin API Endpoints (Kill Switch & System Management)
+# ============================================================================
+
+@app.get("/admin/status")
+async def get_system_status():
+    """
+    Get current system status
+
+    Returns:
+        Current operational status including:
+        - System status (active/maintenance/degraded)
+        - Enabled flag
+        - Reason for current status
+        - Maintenance message (if any)
+        - Expected restoration time (if set)
+
+    Example:
+        GET /admin/status
+    """
+    try:
+        status = system_status_manager.get_status()
+        return {
+            "status": status.status,
+            "enabled": status.enabled,
+            "reason": status.reason,
+            "initiated_by": status.initiated_by,
+            "initiated_at": status.initiated_at.isoformat(),
+            "maintenance_message": status.maintenance_message,
+            "expected_restoration": status.expected_restoration.isoformat() if status.expected_restoration else None,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get system status: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get system status: {str(e)}")
+
+
+@app.post("/admin/kill-switch")
+async def toggle_kill_switch(request: KillSwitchRequest):
+    """
+    Toggle maintenance mode (kill switch)
+
+    Activates or deactivates system-wide maintenance mode. When enabled,
+    all non-admin requests will be blocked with a 503 error.
+
+    Args:
+        enabled: True to enable maintenance mode, False to reactivate system
+        reason: Required explanation for the status change
+        initiated_by: User or system initiating the change (default: "admin")
+        message: Optional user-facing maintenance message
+        expected_restoration: Optional ISO datetime when service will be restored
+
+    Example:
+        POST /admin/kill-switch
+        {
+            "enabled": true,
+            "reason": "Emergency database maintenance",
+            "initiated_by": "admin@example.com",
+            "message": "System will be back online in 30 minutes",
+            "expected_restoration": "2025-11-08T17:00:00Z"
+        }
+    """
+    try:
+        logger.warning(f"Kill switch toggled: enabled={request.enabled}, reason={request.reason}, by={request.initiated_by}")
+
+        restoration = None
+        if request.expected_restoration:
+            try:
+                # Handle both Z suffix and +00:00 timezone format
+                restoration = datetime.fromisoformat(request.expected_restoration.replace('Z', '+00:00'))
+            except ValueError as e:
+                raise HTTPException(status_code=400, detail=f"Invalid expected_restoration format: {str(e)}")
+
+        status = system_status_manager.set_maintenance_mode(
+            enabled=request.enabled,
+            reason=request.reason,
+            initiated_by=request.initiated_by,
+            message=request.message,
+            expected_restoration=restoration
+        )
+
+        return {
+            "success": True,
+            "message": "Maintenance mode activated" if request.enabled else "System reactivated",
+            "status": {
+                "status": status.status,
+                "enabled": status.enabled,
+                "reason": status.reason,
+                "initiated_by": status.initiated_by,
+                "initiated_at": status.initiated_at.isoformat(),
+                "maintenance_message": status.maintenance_message,
+                "expected_restoration": status.expected_restoration.isoformat() if status.expected_restoration else None
+            }
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to toggle kill switch: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to toggle kill switch: {str(e)}")
+
+
+@app.get("/admin/audit-history")
+async def get_audit_history(limit: int = 50):
+    """
+    Get audit history of system status changes
+
+    Args:
+        limit: Maximum number of records to return (default: 50, max: 200)
+
+    Returns:
+        List of audit records with timestamps and details
+
+    Example:
+        GET /admin/audit-history?limit=20
+    """
+    try:
+        if limit > 200:
+            limit = 200
+
+        history = system_status_manager.get_audit_history(limit=limit)
+        return {
+            "success": True,
+            "count": len(history),
+            "audit_trail": history,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to get audit history: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get audit history: {str(e)}")
 
 
 @app.post("/query", response_model=QueryResponse)
