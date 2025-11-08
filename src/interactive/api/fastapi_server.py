@@ -7,6 +7,7 @@ Provides REST API and WebSocket endpoints for real-time FA queries.
 import os
 import logging
 import asyncio
+import uuid
 from datetime import datetime
 from typing import Dict, Any, Optional
 
@@ -21,6 +22,7 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from langsmith import traceable
+from langsmith.run_helpers import get_current_run_tree
 from src.interactive.graphs.interactive_graph import interactive_graph
 from src.interactive.state import InteractiveGraphState
 from src.shared.utils.redis_client import redis_session_manager
@@ -70,6 +72,7 @@ class QueryResponse(BaseModel):
     guardrail_status: str
     citations: list = []
     pii_flags: list = []
+    run_id: Optional[str] = None  # LangSmith run ID for feedback
 
 
 # ============================================================================
@@ -77,7 +80,7 @@ class QueryResponse(BaseModel):
 # ============================================================================
 
 @traceable(name="Interactive Query Graph", run_type="chain")
-async def run_interactive_graph(input_state: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+async def run_interactive_graph(input_state: Dict[str, Any], config: Optional[Dict[str, Any]] = None) -> tuple[Dict[str, Any], Optional[str]]:
     """Wrapper to ensure LangSmith tracing for graph execution"""
     # Create config with LangSmith metadata
     if config is None:
@@ -95,7 +98,18 @@ async def run_interactive_graph(input_state: Dict[str, Any], config: Optional[Di
         }
     }
 
-    return await interactive_graph.ainvoke(input_state, config=config)
+    result = await interactive_graph.ainvoke(input_state, config=config)
+
+    # Capture LangSmith run ID
+    langsmith_run_id = None
+    try:
+        current_run = get_current_run_tree()
+        if current_run:
+            langsmith_run_id = str(current_run.id)
+    except Exception as e:
+        logger.warning(f"Could not capture LangSmith run ID: {e}")
+
+    return result, langsmith_run_id
 
 
 # ============================================================================
@@ -138,9 +152,9 @@ async def process_query(request: QueryRequest):
     logger.info(f"Processing query for FA {request.fa_id}: {request.query_text[:50]}...")
 
     try:
-        # Create input state
+        # Create input state with auto-generated query_id
         input_state = InteractiveGraphState(
-            query_id="",  # Will be auto-generated
+            query_id=str(uuid.uuid4()),
             fa_id=request.fa_id,
             session_id=request.session_id,
             query_text=request.query_text,
@@ -149,7 +163,7 @@ async def process_query(request: QueryRequest):
         )
 
         # Run the graph with LangSmith tracing
-        result = await run_interactive_graph(input_state.model_dump())
+        result, langsmith_run_id = await run_interactive_graph(input_state.model_dump())
 
         # Store conversation turn in Redis
         try:
@@ -176,7 +190,8 @@ async def process_query(request: QueryRequest):
             processing_time_ms=result.get("total_processing_time_ms", 0),
             guardrail_status=result.get("guardrail_status", "unknown"),
             citations=result.get("citations", []),
-            pii_flags=result.get("pii_flags", [])
+            pii_flags=result.get("pii_flags", []),
+            run_id=langsmith_run_id  # Include LangSmith run ID for feedback
         )
 
     except Exception as e:
@@ -218,9 +233,9 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 "message": "Processing your query..."
             })
 
-            # Create input state
+            # Create input state with auto-generated query_id
             input_state = InteractiveGraphState(
-                query_id="",
+                query_id=str(uuid.uuid4()),
                 fa_id=fa_id,
                 session_id=session_id,
                 query_text=query_text,
@@ -229,7 +244,7 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
             )
 
             # Run the graph with LangSmith tracing
-            result = await run_interactive_graph(input_state.model_dump())
+            result, langsmith_run_id = await run_interactive_graph(input_state.model_dump())
 
             # Send response
             await websocket.send_json({
@@ -238,7 +253,8 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
                 "response_text": result.get("response_text"),
                 "response_tier": result.get("response_tier"),
                 "processing_time_ms": result.get("total_processing_time_ms"),
-                "guardrail_status": result.get("guardrail_status")
+                "guardrail_status": result.get("guardrail_status"),
+                "run_id": langsmith_run_id
             })
 
             # Store in Redis
