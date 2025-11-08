@@ -70,8 +70,8 @@ class ResponseWriterAgent:
 
         context_text = "\n\n".join(context_parts)
 
-        # Build prompt
-        prompt = f"""You are a Financial Advisor AI Assistant providing personalized support.
+        # Build prompt with enhanced citation requirements
+        prompt = f"""You are a Financial Advisor AI Assistant providing personalized support with strict factual accuracy.
 
 Query: {query}
 
@@ -80,15 +80,24 @@ Query Intent: {assembled_context.query_intent}
 Context:
 {context_text}
 
-Instructions:
-1. Provide a clear, professional response to the FA's query
-2. Reference specific data points from the context
-3. If household exposure is mentioned, be specific about impact
-4. Keep response concise but informative (200-400 words)
-5. Use professional financial advisory tone
-6. Include specific numbers and citations where possible
+CRITICAL INSTRUCTIONS - FACT-GROUNDED RESPONSE:
+1. Base EVERY factual claim on the provided context - do not make unsupported claims
+2. When citing numbers or data, include source attribution (e.g., "according to the latest 10-Q", "based on portfolio analysis", "per recent news from [source]")
+3. If household exposure is mentioned, be specific about impact with exact figures
+4. Use phrases like "per", "according to", "based on", "from" when stating facts
+5. If you cannot find specific information in the context, explicitly say "Based on available data..." or "While specific details on X aren't provided..."
+6. Keep response concise but informative (200-400 words)
+7. Use professional financial advisory tone
+8. NEVER make guarantees, absolute predictions, or unsupported claims
+9. Include appropriate disclaimers for forward-looking statements
 
-Generate your response:"""
+CITATION REQUIREMENTS:
+- For market data: Include source and date
+- For financial metrics: Reference specific document (10-K, 10-Q, earnings report)
+- For news items: Include publication and date
+- For portfolio exposure: Reference portfolio analysis source
+
+Generate your fact-grounded, properly cited response:"""
 
         response = await self.llm.ainvoke(prompt)
 
