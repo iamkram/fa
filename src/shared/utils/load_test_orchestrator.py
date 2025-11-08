@@ -281,7 +281,11 @@ class LoadTestOrchestrator:
                     response_data = response.json()
                     run_id = response_data.get("run_id")
                     if run_id:
+                        # LangSmith URL format: use project filter to find the run
+                        # Users can search for the run_id in their fa-ai-dev project
                         langsmith_url = f"https://smith.langchain.com/public/{run_id}/r"
+                        # Alternative: Direct link (requires knowing org, but more reliable)
+                        # For now, store the run_id so users can find it in LangSmith
                 except Exception:
                     pass
 
