@@ -166,7 +166,7 @@ def output_guardrail_node(state: InteractiveGraphState, config) -> Dict[str, Any
                         flag_type="hallucination",
                         severity=severity,
                         detail=f"Hallucination (LLM): {item.get('claim')} - {item.get('reason')}",
-                        action_taken="flag" if severity == "low" else "warn"
+                        action_taken="flag"
                     ))
                 logger.warning(f"[Guardrails-Output] Hallucinations detected (LLM): {len(hallucination_items)} items")
 
