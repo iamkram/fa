@@ -29,6 +29,10 @@ from src.shared.utils.redis_client import redis_session_manager
 from src.shared.monitoring.guardrail_metrics import guardrail_metrics
 from src.interactive.api.middleware import MaintenanceModeMiddleware
 from src.shared.utils.system_status import system_status_manager
+from src.shared.utils.load_test_orchestrator import (
+    load_test_orchestrator,
+    LoadTestConfig
+)
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -88,6 +92,16 @@ class KillSwitchRequest(BaseModel):
     initiated_by: str = "admin"
     message: Optional[str] = None
     expected_restoration: Optional[str] = None
+
+
+class LoadTestRequest(BaseModel):
+    """Load test execution request"""
+    test_name: str
+    concurrent_users: int
+    total_requests: int
+    duration_seconds: Optional[int] = None
+    query_type: str = "chat"
+    initiated_by: str = "admin"
 
 
 # ============================================================================
@@ -389,6 +403,205 @@ async def get_audit_history(limit: int = 50):
     except Exception as e:
         logger.error(f"Failed to get audit history: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to get audit history: {str(e)}")
+
+
+# ============================================================================
+# Load Test Endpoints
+# ============================================================================
+
+@app.post("/load-test/start")
+async def start_load_test(request: LoadTestRequest):
+    """Start a new load test run"""
+    try:
+        config = LoadTestConfig(
+            test_name=request.test_name,
+            concurrent_users=request.concurrent_users,
+            total_requests=request.total_requests,
+            duration_seconds=request.duration_seconds,
+            query_type=request.query_type,
+            initiated_by=request.initiated_by
+        )
+
+        run_id = await load_test_orchestrator.start_load_test(config)
+
+        return {
+            "success": True,
+            "run_id": run_id,
+            "message": f"Load test '{request.test_name}' started",
+            "config": {
+                "concurrent_users": request.concurrent_users,
+                "total_requests": request.total_requests
+            }
+        }
+    except Exception as e:
+        logger.error(f"Failed to start load test: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to start load test: {str(e)}")
+
+
+@app.get("/load-test/runs")
+async def list_load_test_runs(limit: int = 20):
+    """List recent load test runs"""
+    try:
+        runs = load_test_orchestrator.list_runs(limit=limit)
+        return {
+            "success": True,
+            "count": len(runs),
+            "runs": runs
+        }
+    except Exception as e:
+        logger.error(f"Failed to list load test runs: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to list runs: {str(e)}")
+
+
+@app.get("/load-test/runs/{run_id}")
+async def get_load_test_run(run_id: int):
+    """Get detailed status of a specific load test run"""
+    try:
+        status = load_test_orchestrator.get_run_status(run_id)
+        if not status:
+            raise HTTPException(status_code=404, detail=f"Run {run_id} not found")
+
+        return {
+            "success": True,
+            "run": status
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Failed to get load test run {run_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get run: {str(e)}")
+
+
+@app.post("/load-test/runs/{run_id}/stop")
+async def stop_load_test_run(run_id: int):
+    """Stop a running load test"""
+    try:
+        await load_test_orchestrator.stop_load_test(run_id)
+        return {
+            "success": True,
+            "message": f"Load test {run_id} stopped"
+        }
+    except Exception as e:
+        logger.error(f"Failed to stop load test {run_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to stop run: {str(e)}")
+
+
+@app.get("/load-test/runs/{run_id}/failures")
+async def get_load_test_failures(run_id: int, limit: int = 50):
+    """Get failed requests for a load test run with LangSmith trace URLs"""
+    try:
+        from sqlalchemy import text
+        from src.shared.database.connection import db_manager
+
+        with db_manager.get_session() as session:
+            results = session.execute(
+                text("""
+                    SELECT fa_id, query_text, error_message, langsmith_url,
+                           response_time_ms, sent_at, status_code
+                    FROM load_test_requests
+                    WHERE run_id = :run_id AND success = FALSE
+                    ORDER BY sent_at DESC
+                    LIMIT :limit
+                """),
+                {"run_id": run_id, "limit": limit}
+            ).fetchall()
+
+            failures = [
+                {
+                    "fa_id": r.fa_id,
+                    "query_text": r.query_text,
+                    "error_message": r.error_message,
+                    "langsmith_url": r.langsmith_url,
+                    "response_time_ms": r.response_time_ms,
+                    "status_code": r.status_code,
+                    "sent_at": r.sent_at.isoformat() if r.sent_at else None
+                }
+                for r in results
+            ]
+
+            # Group by error type
+            error_summary = {}
+            for failure in failures:
+                error_type = failure.get("error_message", "Unknown error")[:100]
+                if error_type not in error_summary:
+                    error_summary[error_type] = {
+                        "count": 0,
+                        "example_langsmith_url": failure.get("langsmith_url")
+                    }
+                error_summary[error_type]["count"] += 1
+
+            return {
+                "success": True,
+                "run_id": run_id,
+                "total_failures": len(failures),
+                "failures": failures,
+                "error_summary": [
+                    {
+                        "error_type": k,
+                        "count": v["count"],
+                        "example_langsmith_url": v["example_langsmith_url"]
+                    }
+                    for k, v in error_summary.items()
+                ]
+            }
+    except Exception as e:
+        logger.error(f"Failed to get failures for run {run_id}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get failures: {str(e)}")
+
+
+@app.websocket("/load-test/ws/{run_id}")
+async def load_test_websocket(websocket: WebSocket, run_id: int):
+    """WebSocket endpoint for real-time load test metrics"""
+    await websocket.accept()
+    logger.info(f"Load test WebSocket connected for run {run_id}")
+
+    try:
+        # Register progress callback
+        async def send_progress(data: Dict[str, Any]):
+            try:
+                await websocket.send_json({
+                    "type": "progress",
+                    "run_id": run_id,
+                    "data": data,
+                    "timestamp": datetime.utcnow().isoformat()
+                })
+            except Exception as e:
+                logger.error(f"Failed to send progress update: {e}")
+
+        # Add callback to orchestrator
+        if run_id not in load_test_orchestrator.progress_callbacks:
+            load_test_orchestrator.progress_callbacks[run_id] = []
+        load_test_orchestrator.progress_callbacks[run_id].append(send_progress)
+
+        # Send initial status
+        status = load_test_orchestrator.get_run_status(run_id)
+        if status:
+            await websocket.send_json({
+                "type": "status",
+                "run_id": run_id,
+                "data": status,
+                "timestamp": datetime.utcnow().isoformat()
+            })
+
+        # Keep connection alive
+        while True:
+            try:
+                # Wait for messages (like stop commands)
+                data = await websocket.receive_json()
+                if data.get("action") == "stop":
+                    await load_test_orchestrator.stop_load_test(run_id)
+            except Exception:
+                break
+
+    except WebSocketDisconnect:
+        logger.info(f"Load test WebSocket disconnected for run {run_id}")
+    except Exception as e:
+        logger.error(f"Load test WebSocket error: {e}")
+    finally:
+        # Cleanup callback
+        if run_id in load_test_orchestrator.progress_callbacks:
+            if send_progress in load_test_orchestrator.progress_callbacks[run_id]:
+                load_test_orchestrator.progress_callbacks[run_id].remove(send_progress)
 
 
 @app.post("/query", response_model=QueryResponse)
