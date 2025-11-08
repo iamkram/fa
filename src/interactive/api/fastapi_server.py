@@ -26,6 +26,7 @@ from langsmith.run_helpers import get_current_run_tree
 from src.interactive.graphs.interactive_graph import interactive_graph
 from src.interactive.state import InteractiveGraphState
 from src.shared.utils.redis_client import redis_session_manager
+from src.shared.monitoring.guardrail_metrics import guardrail_metrics
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)
@@ -133,6 +134,115 @@ async def health_check():
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat()
     }
+
+
+# ============================================================================
+# Metrics API Endpoints
+# ============================================================================
+
+@app.get("/metrics/session/{session_id}")
+async def get_session_metrics(session_id: str):
+    """
+    Get guardrail metrics for a specific session
+
+    Returns:
+        Session-level metrics including:
+        - Total queries processed
+        - Input/output guardrail trigger counts
+        - Fact verification flags
+        - LLM validation usage
+        - Average confidence scores
+        - Total processing time
+
+    Example:
+        GET /metrics/session/test-session-123
+    """
+    try:
+        summary = guardrail_metrics.get_session_summary(session_id)
+        return {
+            "status": "success",
+            "session_id": session_id,
+            "metrics": summary,
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to retrieve session metrics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics: {str(e)}")
+
+
+@app.get("/metrics/guardrails")
+async def get_guardrails_metrics():
+    """
+    Get aggregated guardrail statistics across all sessions
+
+    Returns:
+        System-wide guardrail metrics including:
+        - Total sessions tracked
+        - Aggregated trigger counts
+        - Average performance metrics
+
+    Example:
+        GET /metrics/guardrails
+    """
+    try:
+        # Get all session metrics
+        all_sessions = list(guardrail_metrics._session_metrics.keys())
+
+        if not all_sessions:
+            return {
+                "status": "success",
+                "message": "No metrics data available",
+                "total_sessions": 0,
+                "timestamp": datetime.utcnow().isoformat()
+            }
+
+        # Aggregate metrics across all sessions
+        total_queries = 0
+        total_input_blocks = 0
+        total_output_flags = 0
+        total_fact_flags = 0
+        total_llm_validations = 0
+        all_confidence_scores = []
+        total_processing_time = 0
+
+        for session_id in all_sessions:
+            summary = guardrail_metrics.get_session_summary(session_id)
+            if summary.get("no_data"):
+                continue
+
+            total_queries += summary.get("queries_processed", 0)
+            total_input_blocks += summary.get("input_blocks", 0)
+            total_output_flags += summary.get("output_flags", 0)
+            total_fact_flags += summary.get("fact_verification_flags", 0)
+            total_llm_validations += summary.get("llm_validations_total", 0)
+            total_processing_time += summary.get("total_processing_time_ms", 0)
+
+            # Collect confidence scores
+            session_metrics = guardrail_metrics._session_metrics.get(session_id, {})
+            confidence_scores = session_metrics.get("confidence_scores", [])
+            all_confidence_scores.extend(confidence_scores)
+
+        avg_confidence = sum(all_confidence_scores) / len(all_confidence_scores) if all_confidence_scores else 0.0
+        avg_processing_time = total_processing_time // total_queries if total_queries > 0 else 0
+
+        return {
+            "status": "success",
+            "total_sessions": len(all_sessions),
+            "aggregated_metrics": {
+                "total_queries_processed": total_queries,
+                "total_input_blocks": total_input_blocks,
+                "total_output_flags": total_output_flags,
+                "total_fact_verification_flags": total_fact_flags,
+                "total_llm_validations": total_llm_validations,
+                "average_confidence_score": round(avg_confidence, 3),
+                "total_processing_time_ms": total_processing_time,
+                "average_processing_time_ms": avg_processing_time
+            },
+            "timestamp": datetime.utcnow().isoformat()
+        }
+    except Exception as e:
+        logger.error(f"Failed to retrieve guardrails metrics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to retrieve metrics: {str(e)}")
 
 
 @app.post("/query", response_model=QueryResponse)
