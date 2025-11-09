@@ -56,6 +56,14 @@ app.add_middleware(
 # Maintenance mode middleware (kill switch)
 app.add_middleware(MaintenanceModeMiddleware)
 
+# Include meta-monitoring routes
+try:
+    from src.meta_monitoring.api.routes import router as meta_monitoring_router
+    app.include_router(meta_monitoring_router)
+    logger.info("Meta-monitoring routes registered")
+except ImportError as e:
+    logger.warning(f"Meta-monitoring routes not available: {e}")
+
 
 # ============================================================================
 # Request/Response Models
