@@ -166,3 +166,111 @@ def list_stocks(limit: int = Query(50, le=200), offset: int = Query(0, ge=0)):
             )
             for stock in stocks
         ]
+
+class SummaryHistoryItem(BaseModel):
+    summary_id: str
+    generation_date: str
+    hook_text: Optional[str]
+    medium_text: Optional[str]
+    expanded_text: Optional[str]
+    word_count: int
+
+@router.get("/{ticker}/summaries/history", response_model=List[SummaryHistoryItem])
+def get_summary_history(ticker: str, limit: int = Query(10, le=50, description="Number of summaries to return")):
+    """
+    Get summary history for a stock (most recent first)
+
+    Example: GET /api/stocks/AAPL/summaries/history?limit=10
+    """
+    with db_manager.get_session() as session:
+        stock = session.query(Stock).filter(Stock.ticker == ticker.upper()).first()
+
+        if not stock:
+            raise HTTPException(status_code=404, detail=f"Stock {ticker} not found")
+
+        summaries = session.query(StockSummary).filter(
+            StockSummary.stock_id == stock.stock_id
+        ).order_by(StockSummary.generation_date.desc()).limit(limit).all()
+
+        return [
+            SummaryHistoryItem(
+                summary_id=str(summary.summary_id),
+                generation_date=summary.generation_date.isoformat(),
+                hook_text=summary.hook_text,
+                medium_text=summary.medium_text,
+                expanded_text=summary.expanded_text,
+                word_count=summary.medium_word_count or 0
+            )
+            for summary in summaries
+        ]
+
+class SummaryDiff(BaseModel):
+    added_sentences: List[str]
+    removed_sentences: List[str]
+    summary1: SummaryHistoryItem
+    summary2: SummaryHistoryItem
+
+@router.get("/{ticker}/summaries/compare", response_model=SummaryDiff)
+def compare_summaries(
+    ticker: str,
+    summary1_id: str = Query(..., description="First summary ID (older)"),
+    summary2_id: str = Query(..., description="Second summary ID (newer)")
+):
+    """
+    Compare two summaries and return the differences
+
+    Example: GET /api/stocks/AAPL/summaries/compare?summary1_id=xxx&summary2_id=yyy
+    """
+    with db_manager.get_session() as session:
+        stock = session.query(Stock).filter(Stock.ticker == ticker.upper()).first()
+
+        if not stock:
+            raise HTTPException(status_code=404, detail=f"Stock {ticker} not found")
+
+        summary1 = session.query(StockSummary).filter(
+            StockSummary.summary_id == summary1_id
+        ).first()
+
+        summary2 = session.query(StockSummary).filter(
+            StockSummary.summary_id == summary2_id
+        ).first()
+
+        if not summary1 or not summary2:
+            raise HTTPException(status_code=404, detail="One or both summaries not found")
+
+        # Simple sentence-level diff
+        import re
+
+        def split_sentences(text: str) -> List[str]:
+            if not text:
+                return []
+            # Split on periods, exclamation marks, or question marks followed by space or end
+            sentences = re.split(r'[.!?]\s+|\[.!?]$', text)
+            return [s.strip() for s in sentences if s.strip()]
+
+        sentences1 = set(split_sentences(summary1.medium_text or ""))
+        sentences2 = set(split_sentences(summary2.medium_text or ""))
+
+        added = list(sentences2 - sentences1)
+        removed = list(sentences1 - sentences2)
+
+        return SummaryDiff(
+            added_sentences=added,
+            removed_sentences=removed,
+            summary1=SummaryHistoryItem(
+                summary_id=str(summary1.summary_id),
+                generation_date=summary1.generation_date.isoformat(),
+                hook_text=summary1.hook_text,
+                medium_text=summary1.medium_text,
+                expanded_text=summary1.expanded_text,
+                word_count=summary1.medium_word_count or 0
+            ),
+            summary2=SummaryHistoryItem(
+                summary_id=str(summary2.summary_id),
+                generation_date=summary2.generation_date.isoformat(),
+                hook_text=summary2.hook_text,
+                medium_text=summary2.medium_text,
+                expanded_text=summary2.expanded_text,
+                word_count=summary2.medium_word_count or 0
+            )
+        )

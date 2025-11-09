@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Building2, Calendar, Users, TrendingUp } from "lucide-react";
 import Link from "next/link";
+import { SummaryHistory } from "@/components/SummaryHistory";
 
 interface Stock {
   stock_id: string;
@@ -261,6 +262,9 @@ export function StockDetail({ ticker }: StockDetailProps) {
           )}
         </CardContent>
       </Card>
+
+      {/* Summary History & Comparison */}
+      <SummaryHistory ticker={stock.ticker} />
     </div>
   );
 }
