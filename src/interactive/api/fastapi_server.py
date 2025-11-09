@@ -64,6 +64,24 @@ try:
 except ImportError as e:
     logger.warning(f"Meta-monitoring routes not available: {e}")
 
+# Include meta-monitoring dashboard routes
+try:
+    from src.meta_monitoring.dashboard.dashboard_routes import router as dashboard_router
+    from fastapi.staticfiles import StaticFiles
+    import os
+
+    app.include_router(dashboard_router)
+
+    # Mount static files for dashboard
+    dashboard_static_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "..", "meta_monitoring", "dashboard", "static"
+    )
+    app.mount("/dashboard-static", StaticFiles(directory=dashboard_static_path), name="dashboard-static")
+    logger.info("Dashboard routes and static files registered")
+except ImportError as e:
+    logger.warning(f"Dashboard routes not available: {e}")
+
 
 # ============================================================================
 # Application Lifecycle Events
