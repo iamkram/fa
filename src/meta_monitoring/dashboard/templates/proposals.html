@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+
+{% block title %}Proposals - Meta-Monitoring Dashboard{% endblock %}
+{% block nav_proposals %}active{% endblock %}
+{% block page_title %}Improvement Proposals{% endblock %}
+
+{% block header_actions %}
+<div style="display: flex; gap: 1rem; align-items: center;">
+    <select id="status-filter" class="filter-select" style="padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.375rem;">
+        <option value="pending_approval">Pending Approval</option>
+        <option value="approved">Approved</option>
+        <option value="rejected">Rejected</option>
+        <option value="implemented">Implemented</option>
+        <option value="">All Statuses</option>
+    </select>
+    <select id="type-filter" class="filter-select" style="padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.375rem;">
+        <option value="">All Types</option>
+        <option value="prompt_optimization">Prompt Optimization</option>
+        <option value="guardrail_update">Guardrail Update</option>
+        <option value="model_upgrade">Model Upgrade</option>
+        <option value="config_change">Config Change</option>
+    </select>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Proposal Statistics -->
+<div class="metrics-grid">
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon" style="color: var(--warning);">⏳</div>
+            <div class="metric-info">
+                <div class="metric-label">Pending Approval</div>
+                <div class="metric-value large" id="pending-count">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon" style="color: var(--success);">✓</div>
+            <div class="metric-info">
+                <div class="metric-label">Approved</div>
+                <div class="metric-value large" id="approved-count">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon" style="color: var(--error);">✗</div>
+            <div class="metric-info">
+                <div class="metric-label">Rejected</div>
+                <div class="metric-value large" id="rejected-count">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon" style="color: var(--primary);">🚀</div>
+            <div class="metric-info">
+                <div class="metric-label">Implemented</div>
+                <div class="metric-value large" id="implemented-count">0</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Proposals List -->
+<div class="card">
+    <div class="card-header">
+        <h3>All Proposals</h3>
+        <button id="refresh-btn" class="btn btn-primary" onclick="loadProposals()">Refresh</button>
+    </div>
+    <div class="card-body">
+        <div id="proposals-container">
+            <div class="loading-spinner">Loading proposals...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Proposal Detail Modal -->
+<div id="proposal-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 2rem; border-radius: 0.5rem; max-width: 800px; width: 90%; max-height: 80%; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 id="modal-title">Proposal Details</h2>
+            <button onclick="closeProposalModal()" style="border: none; background: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <div id="modal-content"></div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem; justify-content: flex-end;" id="modal-actions">
+            <!-- Actions will be populated dynamically -->
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/dashboard-static/js/proposals.js"></script>
+{% endblock %}

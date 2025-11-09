@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block title %}Overview - Meta-Monitoring Dashboard{% endblock %}
+{% block nav_overview %}active{% endblock %}
+{% block page_title %}System Overview{% endblock %}
+
+{% block content %}
+<!-- System Health Card -->
+<div class="card health-card">
+    <div class="card-header">
+        <h3>System Health</h3>
+        <span class="status-badge" id="overall-status">Loading...</span>
+    </div>
+    <div class="card-body">
+        <div class="health-metrics">
+            <div class="metric">
+                <div class="metric-label">Active Alerts</div>
+                <div class="metric-value" id="active-alerts-count">--</div>
+            </div>
+            <div class="metric critical">
+                <div class="metric-label">Critical Alerts</div>
+                <div class="metric-value" id="critical-alerts-count">--</div>
+            </div>
+            <div class="metric">
+                <div class="metric-label">Latest Evaluation</div>
+                <div class="metric-value small" id="latest-eval-time">--</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Key Metrics Grid -->
+<div class="metrics-grid">
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon">✓</div>
+            <div class="metric-info">
+                <div class="metric-label">Fact Accuracy</div>
+                <div class="metric-value large" id="fact-accuracy">--%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon">🛡️</div>
+            <div class="metric-info">
+                <div class="metric-label">Guardrail Pass Rate</div>
+                <div class="metric-value large" id="guardrail-rate">--%</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon">⚡</div>
+            <div class="metric-info">
+                <div class="metric-label">Avg Response Time</div>
+                <div class="metric-value large" id="response-time">-- ms</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon">🎯</div>
+            <div class="metric-info">
+                <div class="metric-label">SLA Compliance</div>
+                <div class="metric-value large" id="sla-compliance">--%</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Alerts -->
+<div class="card">
+    <div class="card-header">
+        <h3>Recent Alerts</h3>
+        <a href="/dashboard/alerts" class="btn-link">View All →</a>
+    </div>
+    <div class="card-body">
+        <div id="recent-alerts-container">
+            <div class="loading-spinner">Loading alerts...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Active Proposals Summary -->
+<div class="card">
+    <div class="card-header">
+        <h3>Active Proposals</h3>
+        <a href="/dashboard/proposals" class="btn-link">View All →</a>
+    </div>
+    <div class="card-body">
+        <div id="proposals-summary">
+            <div class="loading-spinner">Loading proposals...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/dashboard-static/js/overview.js"></script>
+{% endblock %}

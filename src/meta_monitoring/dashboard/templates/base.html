@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Meta-Monitoring Dashboard{% endblock %}</title>
+    <link rel="stylesheet" href="/dashboard-static/css/dashboard.css">
+    {% block extra_css %}{% endblock %}
+</head>
+<body>
+    <div class="dashboard-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <div class="sidebar-header">
+                <h2>Meta-Monitoring</h2>
+                <p class="subtitle">FA AI System</p>
+            </div>
+
+            <ul class="nav-menu">
+                <li><a href="/dashboard/" class="nav-link {% block nav_overview %}{% endblock %}">
+                    <span class="icon">📊</span> Overview
+                </a></li>
+                <li><a href="/dashboard/alerts" class="nav-link {% block nav_alerts %}{% endblock %}">
+                    <span class="icon">🚨</span> Alerts
+                </a></li>
+                <li><a href="/dashboard/proposals" class="nav-link {% block nav_proposals %}{% endblock %}">
+                    <span class="icon">💡</span> Proposals
+                </a></li>
+                <li><a href="/dashboard/metrics" class="nav-link {% block nav_metrics %}{% endblock %}">
+                    <span class="icon">📈</span> Metrics
+                </a></li>
+                <li><a href="/dashboard/controls" class="nav-link {% block nav_controls %}{% endblock %}">
+                    <span class="icon">⚙️</span> Controls
+                </a></li>
+            </ul>
+
+            <div class="sidebar-footer">
+                <div class="auto-refresh-indicator">
+                    <span class="refresh-dot"></span>
+                    <span id="refresh-status">Auto-refresh active</span>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <header class="page-header">
+                <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+                <div class="header-actions">
+                    <span class="last-updated">Last updated: <span id="last-updated-time">--:--</span></span>
+                    {% block header_actions %}{% endblock %}
+                </div>
+            </header>
+
+            <div class="content-body">
+                {% block content %}{% endblock %}
+            </div>
+        </main>
+    </div>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container"></div>
+
+    <!-- Common Scripts -->
+    <script src="/dashboard-static/js/api.js"></script>
+    <script src="/dashboard-static/js/utils.js"></script>
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}Alerts - Meta-Monitoring Dashboard{% endblock %}
+{% block nav_alerts %}active{% endblock %}
+{% block page_title %}Alerts{% endblock %}
+
+{% block header_actions %}
+<div style="display: flex; gap: 1rem; align-items: center;">
+    <select id="severity-filter" class="filter-select" style="padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.375rem;">
+        <option value="">All Severities</option>
+        <option value="critical">Critical</option>
+        <option value="high">High</option>
+        <option value="medium">Medium</option>
+        <option value="low">Low</option>
+    </select>
+    <select id="status-filter" class="filter-select" style="padding: 0.5rem; border: 1px solid var(--border); border-radius: 0.375rem;">
+        <option value="active">Active</option>
+        <option value="acknowledged">Acknowledged</option>
+        <option value="resolved">Resolved</option>
+        <option value="">All Statuses</option>
+    </select>
+</div>
+{% endblock %}
+
+{% block content %}
+<!-- Alert Statistics Cards -->
+<div class="metrics-grid">
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon" style="color: var(--error);">🚨</div>
+            <div class="metric-info">
+                <div class="metric-label">Critical Alerts</div>
+                <div class="metric-value large" id="critical-count">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon" style="color: var(--warning);">⚠️</div>
+            <div class="metric-info">
+                <div class="metric-label">High Priority</div>
+                <div class="metric-value large" id="high-count">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon" style="color: var(--primary);">📋</div>
+            <div class="metric-info">
+                <div class="metric-label">Total Active</div>
+                <div class="metric-value large" id="active-count">0</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card metric-card">
+        <div class="card-body">
+            <div class="metric-icon" style="color: var(--success);">✓</div>
+            <div class="metric-info">
+                <div class="metric-label">Resolved (24h)</div>
+                <div class="metric-value large" id="resolved-count">0</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Alerts Table -->
+<div class="card">
+    <div class="card-header">
+        <h3>All Alerts</h3>
+        <div style="display: flex; gap: 0.5rem;">
+            <button id="refresh-btn" class="btn btn-primary" onclick="loadAlerts()">Refresh</button>
+        </div>
+    </div>
+    <div class="card-body">
+        <div id="alerts-container">
+            <div class="loading-spinner">Loading alerts...</div>
+        </div>
+    </div>
+</div>
+
+<!-- Alert Detail Modal (simplified - can be enhanced) -->
+<div id="alert-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; justify-content: center; align-items: center;">
+    <div style="background: white; padding: 2rem; border-radius: 0.5rem; max-width: 600px; width: 90%; max-height: 80%; overflow-y: auto;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+            <h2 id="modal-title">Alert Details</h2>
+            <button onclick="closeAlertModal()" style="border: none; background: none; font-size: 1.5rem; cursor: pointer;">&times;</button>
+        </div>
+        <div id="modal-content"></div>
+        <div style="display: flex; gap: 0.5rem; margin-top: 1.5rem; justify-content: flex-end;">
+            <button class="btn btn-primary" id="acknowledge-btn">Acknowledge</button>
+            <button class="btn btn-primary" id="resolve-btn">Resolve</button>
+            <button class="btn" onclick="closeAlertModal()">Close</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="/dashboard-static/js/alerts.js"></script>
+{% endblock %}
