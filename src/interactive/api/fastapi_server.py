@@ -66,6 +66,46 @@ except ImportError as e:
 
 
 # ============================================================================
+# Application Lifecycle Events
+# ============================================================================
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on application startup"""
+    logger.info("🚀 FastAPI application starting...")
+
+    # Start meta-monitoring scheduler
+    try:
+        from src.meta_monitoring.scheduler.meta_scheduler import start_meta_monitoring
+        await start_meta_monitoring()
+        logger.info("✓ Meta-monitoring scheduler started")
+    except ImportError:
+        logger.warning("Meta-monitoring scheduler not available")
+    except Exception as e:
+        logger.error(f"Failed to start meta-monitoring scheduler: {e}", exc_info=True)
+
+    logger.info("✓ Application startup complete")
+
+
+@app.on_event("shutdown")
+async def shutdown_event():
+    """Cleanup on application shutdown"""
+    logger.info("🛑 FastAPI application shutting down...")
+
+    # Stop meta-monitoring scheduler
+    try:
+        from src.meta_monitoring.scheduler.meta_scheduler import stop_meta_monitoring
+        await stop_meta_monitoring()
+        logger.info("✓ Meta-monitoring scheduler stopped")
+    except ImportError:
+        pass
+    except Exception as e:
+        logger.error(f"Error stopping meta-monitoring scheduler: {e}", exc_info=True)
+
+    logger.info("✓ Application shutdown complete")
+
+
+# ============================================================================
 # Request/Response Models
 # ============================================================================
 
