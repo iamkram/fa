@@ -278,3 +278,184 @@ async def get_metrics_trend(
     except Exception as e:
         logger.error(f"Error getting metrics trend: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Research Agent Endpoints (Phase 2)
+# ============================================================================
+
+@router.post("/research/analyze-alert/{alert_id}")
+async def analyze_alert(alert_id: str, db: Session = Depends(get_db)):
+    """Trigger research agent to analyze a specific alert and propose fix"""
+    try:
+        from src.meta_monitoring.agents.research_agent import run_research_agent
+
+        logger.info(f"[API] Triggering research agent for alert {alert_id}")
+        proposal = await run_research_agent(alert_id=alert_id)
+
+        if not proposal:
+            return {
+                "success": False,
+                "message": "No actionable proposal generated for this alert"
+            }
+
+        return {
+            "success": True,
+            "message": "Improvement proposal created",
+            "proposal": proposal
+        }
+
+    except Exception as e:
+        logger.error(f"Error analyzing alert {alert_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/research/batch-analyze")
+async def batch_analyze_alerts(max_alerts: int = 5):
+    """Trigger research agent to analyze multiple recent alerts"""
+    try:
+        from src.meta_monitoring.agents.research_agent import run_research_agent
+
+        logger.info(f"[API] Triggering batch analysis of up to {max_alerts} alerts")
+        proposals = await run_research_agent(max_alerts=max_alerts)
+
+        return {
+            "success": True,
+            "message": f"Created {len(proposals)} proposals from {max_alerts} alerts",
+            "proposals": proposals
+        }
+
+    except Exception as e:
+        logger.error(f"Error in batch analysis: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Validation Agent Endpoints (Phase 2)
+# ============================================================================
+
+@router.post("/validation/validate-proposal/{proposal_id}")
+async def validate_proposal(proposal_id: str, run_tests: bool = True):
+    """Trigger validation agent to test an improvement proposal"""
+    try:
+        from src.meta_monitoring.agents.validation_agent import run_validation_agent
+
+        logger.info(f"[API] Triggering validation for proposal {proposal_id}")
+        results = await run_validation_agent(proposal_id, run_tests=run_tests)
+
+        return {
+            "success": results.get("status") in ["passed", "skipped"],
+            "message": f"Validation {results.get('status')}",
+            "results": results
+        }
+
+    except Exception as e:
+        logger.error(f"Error validating proposal {proposal_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/validation/results/{proposal_id}")
+async def get_validation_results(proposal_id: str, db: Session = Depends(get_db)):
+    """Get validation results for a proposal"""
+    try:
+        from src.shared.models.meta_monitoring import ValidationResult
+
+        results = db.query(ValidationResult).filter(
+            ValidationResult.proposal_id == proposal_id
+        ).order_by(desc(ValidationResult.started_at)).all()
+
+        return {
+            "success": True,
+            "count": len(results),
+            "results": [
+                {
+                    "validation_id": str(r.validation_id),
+                    "status": r.status,
+                    "started_at": r.started_at.isoformat(),
+                    "completed_at": r.completed_at.isoformat() if r.completed_at else None,
+                    "tests_passed": r.tests_passed,
+                    "tests_failed": r.tests_failed,
+                    "regressions_detected": r.regressions_detected,
+                    "improvement_delta": r.improvement_delta
+                }
+                for r in results
+            ]
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting validation results: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+# ============================================================================
+# Proposal Management Endpoints (Phase 2)
+# ============================================================================
+
+@router.post("/proposals/{proposal_id}/approve")
+async def approve_proposal(proposal_id: str, approved_by: str, db: Session = Depends(get_db)):
+    """Approve an improvement proposal"""
+    try:
+        proposal = db.query(ImprovementProposal).filter(
+            ImprovementProposal.proposal_id == proposal_id
+        ).first()
+
+        if not proposal:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+
+        proposal.status = 'approved'
+        proposal.reviewed_by = approved_by
+        proposal.reviewed_at = datetime.utcnow()
+
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "Proposal approved",
+            "proposal_id": proposal_id,
+            "status": "approved"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error approving proposal: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.post("/proposals/{proposal_id}/reject")
+async def reject_proposal(
+    proposal_id: str,
+    rejected_by: str,
+    reason: str,
+    db: Session = Depends(get_db)
+):
+    """Reject an improvement proposal"""
+    try:
+        proposal = db.query(ImprovementProposal).filter(
+            ImprovementProposal.proposal_id == proposal_id
+        ).first()
+
+        if not proposal:
+            raise HTTPException(status_code=404, detail="Proposal not found")
+
+        proposal.status = 'rejected'
+        proposal.reviewed_by = rejected_by
+        proposal.reviewed_at = datetime.utcnow()
+        proposal.review_notes = reason
+
+        db.commit()
+
+        return {
+            "success": True,
+            "message": "Proposal rejected",
+            "proposal_id": proposal_id,
+            "status": "rejected"
+        }
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error rejecting proposal: {e}", exc_info=True)
+        db.rollback()
+        raise HTTPException(status_code=500, detail=str(e))
