@@ -10,6 +10,15 @@ import { MessageBubble } from "./Message";
 import { Button } from "./ui/button";
 import { cn } from "@/utils/cn";
 import { v4 as uuidv4 } from "uuid";
+import { SuggestedPrompts } from "./SuggestedPrompts";
+import { SessionSidebar, SidebarToggle } from "./SessionSidebar";
+import {
+  addMessageToSession,
+  createNewSession,
+  getSession,
+  getCurrentSessionId,
+  setCurrentSessionId,
+} from "@/lib/sessionStorage";
 
 function ScrollToBottom() {
   const { isAtBottom, scrollToBottom } = useStickToBottomContext();
@@ -32,26 +41,32 @@ function ChatMessages(props: {
   messages: Message[];
   sourcesForMessages: Record<string, any>;
   runIds: Record<string, string>;
+  onPromptClick?: (text: string) => void;
+  advisorName?: string;
+  advisorFirm?: string;
 }) {
   if (props.messages.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center h-full text-center px-4">
-        <div className="max-w-md">
+      <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
+        <div className="max-w-4xl w-full">
           <h2 className="text-2xl font-semibold text-foreground mb-3">
-            Welcome to FA AI Assistant
+            {props.advisorName
+              ? `Welcome, ${props.advisorName}`
+              : "Welcome to FA AI Assistant"}
           </h2>
-          <p className="text-muted-foreground mb-6">
+          {props.advisorFirm && (
+            <p className="text-sm text-muted-foreground mb-2">
+              {props.advisorFirm}
+            </p>
+          )}
+          <p className="text-muted-foreground mb-8">
             Ask questions about market trends, company analysis, or financial
             data. Your AI assistant is ready to help with professional insights.
           </p>
-          <div className="text-sm text-muted-foreground space-y-2">
-            <p>Try asking:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>&quot;What are the latest trends in the tech sector?&quot;</li>
-              <li>&quot;Provide an analysis of AAPL&quot;</li>
-              <li>&quot;What economic indicators should I watch?&quot;</li>
-            </ul>
-          </div>
+
+          {props.onPromptClick && (
+            <SuggestedPrompts onPromptClick={props.onPromptClick} />
+          )}
         </div>
       </div>
     );
@@ -145,12 +160,15 @@ function ChatLayout(props: { content: React.ReactNode; footer: React.ReactNode }
 }
 
 export function Chat() {
-  const [sessionId] = useState(() => uuidv4());
+  const [sessionId, setSessionId] = useState(() => uuidv4());
   const [sourcesForMessages, setSourcesForMessages] = useState<
     Record<string, any>
   >({});
   const [runIds, setRunIds] = useState<Record<string, string>>({});
   const pendingRunIdRef = useRef<string | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [advisorName, setAdvisorName] = useState<string>("");
+  const [advisorFirm, setAdvisorFirm] = useState<string>("");
 
   const chat = useChat({
     api: "/api/chat",
@@ -201,24 +219,112 @@ export function Chat() {
     },
   });
 
+  // Handler for when a suggested prompt is clicked
+  const handlePromptClick = (promptText: string) => {
+    // Set the input value
+    chat.setInput(promptText);
+
+    // Submit the message by appending it to the messages
+    chat.append({
+      role: "user",
+      content: promptText,
+    });
+  };
+
+  // Session management handlers
+  const handleNewChat = () => {
+    const newSessionId = uuidv4();
+    createNewSession(newSessionId);
+    setSessionId(newSessionId);
+    chat.setMessages([]);
+    setSourcesForMessages({});
+    setRunIds({});
+  };
+
+  const handleSessionChange = (newSessionId: string) => {
+    const session = getSession(newSessionId);
+    if (session) {
+      setSessionId(newSessionId);
+      setCurrentSessionId(newSessionId);
+
+      // Convert stored messages to Message format
+      const messages: Message[] = session.messages.map((msg) => ({
+        id: msg.id,
+        role: msg.role,
+        content: msg.content,
+      }));
+
+      chat.setMessages(messages);
+      setSidebarOpen(false); // Close sidebar on mobile
+    }
+  };
+
+  // Save messages to localStorage whenever chat.messages changes
+  useEffect(() => {
+    if (chat.messages.length > 0) {
+      chat.messages.forEach((msg) => {
+        addMessageToSession(sessionId, {
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+          timestamp: Date.now(),
+        });
+      });
+    }
+  }, [chat.messages, sessionId]);
+
+  // Fetch advisor information on mount
+  useEffect(() => {
+    const fetchAdvisorInfo = async () => {
+      try {
+        const response = await fetch("http://localhost:8000/api/advisors/FA-001");
+        if (response.ok) {
+          const data = await response.json();
+          setAdvisorName(data.name);
+          setAdvisorFirm(data.firm_name || "");
+        }
+      } catch (error) {
+        console.error("Failed to fetch advisor info:", error);
+      }
+    };
+    fetchAdvisorInfo();
+  }, []);
+
   return (
-    <ChatLayout
-      content={
-        <ChatMessages
-          messages={chat.messages}
-          sourcesForMessages={sourcesForMessages}
-          runIds={runIds}
+    <div className="flex h-full w-full">
+      <SessionSidebar
+        currentSessionId={sessionId}
+        onSessionChange={handleSessionChange}
+        onNewChat={handleNewChat}
+        isOpen={sidebarOpen}
+        onToggle={() => setSidebarOpen(!sidebarOpen)}
+      />
+
+      <div className="flex-1 flex flex-col relative">
+        <SidebarToggle onClick={() => setSidebarOpen(!sidebarOpen)} />
+
+        <ChatLayout
+          content={
+            <ChatMessages
+              messages={chat.messages}
+              sourcesForMessages={sourcesForMessages}
+              runIds={runIds}
+              onPromptClick={handlePromptClick}
+              advisorName={advisorName}
+              advisorFirm={advisorFirm}
+            />
+          }
+          footer={
+            <ChatInput
+              value={chat.input}
+              onChange={chat.handleInputChange}
+              onSubmit={chat.handleSubmit}
+              loading={chat.isLoading}
+              placeholder="Ask a question about markets, companies, or financial data..."
+            />
+          }
         />
-      }
-      footer={
-        <ChatInput
-          value={chat.input}
-          onChange={chat.handleInputChange}
-          onSubmit={chat.handleSubmit}
-          loading={chat.isLoading}
-          placeholder="Ask a question about markets, companies, or financial data..."
-        />
-      }
-    />
+      </div>
+    </div>
   );
 }

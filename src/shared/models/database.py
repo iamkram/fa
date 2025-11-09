@@ -81,3 +81,54 @@ class BatchRunAudit(Base):
     fact_check_pass_rate = Column(Float)
     error_log = Column(JSON)
     created_at = Column(DateTime, default=datetime.utcnow)
+
+class Advisor(Base):
+    __tablename__ = "advisors"
+
+    advisor_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    fa_id = Column(String(50), unique=True, nullable=False, index=True)  # e.g., "FA-001"
+    name = Column(String(255), nullable=False)
+    email = Column(String(255), unique=True)
+    firm_name = Column(String(255))
+    preferences = Column(JSON)  # watchlist, notification settings, etc.
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+class Client(Base):
+    __tablename__ = "clients"
+
+    client_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    advisor_id = Column(UUID(as_uuid=True), ForeignKey("advisors.advisor_id"), nullable=False, index=True)
+    account_id = Column(String(50), unique=True, nullable=False, index=True)
+    name = Column(String(255), nullable=False)
+    email = Column(String(255))
+    phone = Column(String(50))
+    last_meeting_date = Column(DateTime, index=True)
+    next_meeting_date = Column(DateTime, index=True)
+    notes = Column(Text)
+    client_metadata = Column(JSON)  # additional client information
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_advisor_name', 'advisor_id', 'name'),
+    )
+
+class ClientHolding(Base):
+    __tablename__ = "client_holdings"
+
+    holding_id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id = Column(UUID(as_uuid=True), ForeignKey("clients.client_id"), nullable=False, index=True)
+    stock_id = Column(UUID(as_uuid=True), ForeignKey("stocks.stock_id"), nullable=False, index=True)
+    ticker = Column(String(10), nullable=False, index=True)  # denormalized for quick lookups
+    shares = Column(Float, nullable=False)
+    cost_basis = Column(Float)  # per share
+    purchase_date = Column(DateTime)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    __table_args__ = (
+        Index('idx_client_ticker', 'client_id', 'ticker'),
+        Index('idx_ticker_clients', 'ticker', 'client_id'),  # for reverse lookup
+    )

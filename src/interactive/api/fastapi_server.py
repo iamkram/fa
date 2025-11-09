@@ -82,6 +82,14 @@ try:
 except ImportError as e:
     logger.warning(f"Dashboard routes not available: {e}")
 
+# Include advisor API routes
+try:
+    from src.interactive.api.advisors import router as advisors_router
+    app.include_router(advisors_router)
+    logger.info("Advisor API routes registered")
+except ImportError as e:
+    logger.warning(f"Advisor routes not available: {e}")
+
 
 # ============================================================================
 # Application Lifecycle Events
@@ -718,7 +726,7 @@ async def process_query(request: QueryRequest):
         # Build response
         return QueryResponse(
             query_id=result.get("query_id", "unknown"),
-            response_text=result.get("response_text", "No response generated"),
+            response_text=result.get("response_text") or "No response generated",  # Use 'or' to handle None
             response_tier=result.get("response_tier"),
             processing_time_ms=result.get("total_processing_time_ms", 0),
             guardrail_status=result.get("guardrail_status", "unknown"),
