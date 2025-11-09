@@ -55,6 +55,12 @@ export default function RootLayout({
                 >
                   Clients
                 </Link>
+                <Link
+                  href="/stocks"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Stocks
+                </Link>
               </nav>
             </div>
           </div>

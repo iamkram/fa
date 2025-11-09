@@ -90,6 +90,22 @@ try:
 except ImportError as e:
     logger.warning(f"Advisor routes not available: {e}")
 
+# Include client API routes
+try:
+    from src.interactive.api.clients import router as clients_router
+    app.include_router(clients_router)
+    logger.info("Client API routes registered")
+except ImportError as e:
+    logger.warning(f"Client routes not available: {e}")
+
+# Include stock API routes
+try:
+    from src.interactive.api.stocks import router as stocks_router
+    app.include_router(stocks_router)
+    logger.info("Stock API routes registered")
+except ImportError as e:
+    logger.warning(f"Stock routes not available: {e}")
+
 
 # ============================================================================
 # Application Lifecycle Events
