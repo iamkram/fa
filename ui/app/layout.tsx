@@ -2,6 +2,7 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { Toaster } from "@/components/ui/sonner";
 import Image from "next/image";
+import Link from "next/link";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -41,6 +42,20 @@ export default function RootLayout({
                   </p>
                 </div>
               </div>
+              <nav className="flex items-center gap-6">
+                <Link
+                  href="/"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Chat
+                </Link>
+                <Link
+                  href="/clients"
+                  className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  Clients
+                </Link>
+              </nav>
             </div>
           </div>
           <div className="bg-background relative">
