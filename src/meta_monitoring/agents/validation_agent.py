@@ -76,7 +76,9 @@ class ValidationAgent:
                 proposal_id=uuid.UUID(proposal_id),
                 started_at=datetime.utcnow(),
                 status='running',
-                baseline_metrics=baseline_metrics
+                baseline_metrics=baseline_metrics,
+                test_metrics=baseline_metrics,  # Initialize with baseline, will be updated if tests run
+                regressions_detected=False
             )
             db.add(validation)
             db.commit()

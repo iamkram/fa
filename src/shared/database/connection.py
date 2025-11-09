@@ -48,3 +48,16 @@ db_manager = DatabaseManager()
 def get_db_session() -> Generator[Session, None, None]:
     """Dependency for FastAPI or direct use"""
     return db_manager.get_session()
+
+def get_db() -> Generator[Session, None, None]:
+    """FastAPI dependency for database sessions"""
+    session = db_manager.SessionLocal()
+    try:
+        yield session
+        session.commit()
+    except Exception as e:
+        session.rollback()
+        logger.error(f"Database error: {str(e)}")
+        raise
+    finally:
+        session.close()
