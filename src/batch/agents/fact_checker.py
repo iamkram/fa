@@ -62,8 +62,19 @@ class FactCheckerAgent:
         response = await self.llm.ainvoke(messages)
 
         try:
-            # Parse JSON response
-            result = json.loads(response.content.strip())
+            # Parse JSON response, stripping markdown code blocks if present
+            content = response.content.strip()
+
+            # Remove ```json and ``` if present
+            if content.startswith('```'):
+                # Find the first newline after opening ```
+                start = content.find('\n')
+                # Find the closing ```
+                end = content.rfind('```')
+                if start != -1 and end != -1:
+                    content = content[start+1:end].strip()
+
+            result = json.loads(content)
 
             verified_count = result.get('verified_count', 0)
             failed_count = result.get('failed_count', 0)
