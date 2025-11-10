@@ -1,7 +1,11 @@
 {
   "dependencies": ["."],
   "graphs": {
-    "interactive_graph": "./src/interactive/graphs/interactive_graph.py:interactive_graph"
+    "interactive_graph": "./src/interactive/graphs/interactive_graph.py:interactive_graph",
+    "batch_assistant_graph": "./src/batch/graphs/batch_assistant_graph.py:batch_assistant_graph",
+    "supervisor_agent": "./src/interactive/agents/supervisor.py:create_supervisor_agent",
+    "custom_supervisor_graph": "./src/interactive/agents/supervisor.py:create_custom_supervisor_graph"
   },
-  "env": ".env"
+  "env": ".env",
+  "python_version": "3.11"
 }
