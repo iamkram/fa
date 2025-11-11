@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AdminNav } from "@/components/AdminNav";
 import { Input } from "@/components/ui/input";
 import {
   Dialog,
@@ -309,33 +310,7 @@ export default function LoadTestPage() {
         <h1 className="text-3xl font-bold mb-4">Load Testing Dashboard</h1>
 
         {/* Navigation */}
-        <nav className="flex flex-wrap gap-2" aria-label="Admin navigation">
-          <Link href="/">
-            <Button variant="outline" size="sm">
-              ← Home
-            </Button>
-          </Link>
-          <Link href="/admin">
-            <Button variant="outline" size="sm">
-              Dashboard
-            </Button>
-          </Link>
-          <Button variant="default" size="sm" disabled>
-            Load Testing
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open("http://localhost:8001/dashboard/", "_blank")}
-          >
-            Meta Monitoring
-          </Button>
-          <Link href="/maintenance?preview=true">
-            <Button variant="outline" size="sm">
-              Maintenance Page
-            </Button>
-          </Link>
-        </nav>
+        <AdminNav />
       </div>
 
       {/* Performance Trends */}

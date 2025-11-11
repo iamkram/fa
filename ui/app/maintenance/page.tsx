@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AdminNav } from "@/components/AdminNav";
 import { Loader2 } from "lucide-react";
 
 interface SystemStatus {
@@ -62,13 +63,20 @@ export default function MaintenancePage() {
   const isPreview = urlParams?.get('preview') === 'true';
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-background px-4 py-12">
+    <div className="flex flex-col min-h-screen bg-background">
       {isPreview && status?.status !== "maintenance" && (
         <div className="fixed top-0 left-0 right-0 bg-blue-600 text-white text-center py-2 text-sm font-medium z-50">
           Preview Mode - System is currently {status?.status?.toUpperCase()}
         </div>
       )}
-      <div className="text-center max-w-2xl">
+
+      {/* Admin Navigation */}
+      <div className="container mx-auto px-4 pt-6 pb-4">
+        <AdminNav />
+      </div>
+
+      <div className="flex items-center justify-center flex-1 px-4 py-12">
+        <div className="text-center max-w-2xl">
         {/* Icon */}
         <div className="mx-auto w-20 h-20 mb-6 rounded-full bg-yellow-100 flex items-center justify-center">
           <svg
@@ -144,43 +152,12 @@ export default function MaintenancePage() {
           </a>
         </div>
 
-        {/* Admin Navigation */}
-        <div className="border-t mt-6 pt-6">
-          <p className="text-xs text-muted-foreground mb-3">Admin Access</p>
-          <nav className="flex flex-wrap gap-2" aria-label="Admin navigation">
-            <Link href="/">
-              <Button variant="outline" size="sm">
-                ← Home
-              </Button>
-            </Link>
-            <Link href="/admin">
-              <Button variant="outline" size="sm">
-                Dashboard
-              </Button>
-            </Link>
-            <Link href="/admin/load-test">
-              <Button variant="outline" size="sm">
-                Load Testing
-              </Button>
-            </Link>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => window.open("http://localhost:8001/dashboard/", "_blank")}
-            >
-              Meta Monitoring
-            </Button>
-            <Button variant="default" size="sm" disabled>
-              Maintenance Page
-            </Button>
-          </nav>
-        </div>
-
         {/* Auto-refresh indicator */}
         <div className="mt-8 flex items-center justify-center gap-2 text-xs text-muted-foreground">
           <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
           <span>Checking for updates every 10 seconds...</span>
         </div>
+      </div>
       </div>
     </div>
   );

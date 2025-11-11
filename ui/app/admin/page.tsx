@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { AdminNav } from "@/components/AdminNav";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -152,38 +153,12 @@ export default function AdminPage() {
   const isInMaintenance = status?.status === "maintenance";
 
   return (
-    <div className="container mx-auto p-4 sm:p-6 md:p-8 max-w-4xl">
+    <div className="container mx-auto p-4 sm:p-6 md:p-8 max-w-7xl">
       <div className="mb-6 sm:mb-8">
         <h1 className="text-2xl sm:text-3xl font-bold mb-4">System Administration</h1>
 
         {/* Navigation */}
-        <nav className="flex flex-wrap gap-2" aria-label="Admin navigation">
-          <Link href="/">
-            <Button variant="outline" size="sm">
-              ← Home
-            </Button>
-          </Link>
-          <Button variant="default" size="sm" disabled>
-            Dashboard
-          </Button>
-          <Link href="/admin/load-test">
-            <Button variant="outline" size="sm">
-              Load Testing
-            </Button>
-          </Link>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => window.open("http://localhost:8001/dashboard/", "_blank")}
-          >
-            Meta Monitoring
-          </Button>
-          <Link href="/maintenance?preview=true">
-            <Button variant="outline" size="sm">
-              Maintenance Page
-            </Button>
-          </Link>
-        </nav>
+        <AdminNav />
       </div>
 
       {/* Current Status */}

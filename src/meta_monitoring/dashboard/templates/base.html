@@ -9,73 +9,63 @@
 </head>
 <body>
     <div class="dashboard-container">
-        <!-- Sidebar Navigation -->
-        <nav class="sidebar">
-            <div class="sidebar-header">
-                <h2>Meta-Monitoring</h2>
-                <p class="subtitle">FA AI System</p>
-            </div>
-
-            <ul class="nav-menu">
-                <li><a href="/dashboard/" class="nav-link {% block nav_overview %}{% endblock %}">
-                    <span class="icon">📊</span> Overview
-                </a></li>
-                <li><a href="/dashboard/alerts" class="nav-link {% block nav_alerts %}{% endblock %}">
-                    <span class="icon">🚨</span> Alerts
-                </a></li>
-                <li><a href="/dashboard/proposals" class="nav-link {% block nav_proposals %}{% endblock %}">
-                    <span class="icon">💡</span> Proposals
-                </a></li>
-                <li><a href="/dashboard/metrics" class="nav-link {% block nav_metrics %}{% endblock %}">
-                    <span class="icon">📈</span> Metrics
-                </a></li>
-                <li><a href="/dashboard/controls" class="nav-link {% block nav_controls %}{% endblock %}">
-                    <span class="icon">⚙️</span> Controls
-                </a></li>
-            </ul>
-
-            <!-- Separator -->
-            <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 16px 12px;"></div>
-
-            <!-- Admin Dashboard Links -->
-            <div style="padding: 0 12px; margin-bottom: 16px;">
-                <p style="font-size: 11px; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px; font-weight: 600; letter-spacing: 0.5px;">Admin Dashboard</p>
-                <ul class="nav-menu" style="margin: 0;">
-                    <li><a href="http://localhost:3000/" class="nav-link" target="_blank">
-                        <span class="icon">🏠</span> Home
-                    </a></li>
-                    <li><a href="http://localhost:3000/admin" class="nav-link" target="_blank">
-                        <span class="icon">🎛️</span> Dashboard
-                    </a></li>
-                    <li><a href="http://localhost:3000/admin/load-test" class="nav-link" target="_blank">
-                        <span class="icon">⚡</span> Load Testing
-                    </a></li>
-                    <li><a href="http://localhost:8001/batch-dashboard" class="nav-link" target="_blank">
-                        <span class="icon">📦</span> Batch Monitoring
-                    </a></li>
-                    <li><a href="http://localhost:3000/maintenance?preview=true" class="nav-link" target="_blank">
-                        <span class="icon">🔧</span> Maintenance Page
-                    </a></li>
-                </ul>
-            </div>
-
-            <div class="sidebar-footer">
-                <div class="auto-refresh-indicator">
-                    <span class="refresh-dot"></span>
-                    <span id="refresh-status">Auto-refresh active</span>
-                </div>
-            </div>
-        </nav>
-
         <!-- Main Content Area -->
         <main class="main-content">
-            <header class="page-header">
-                <h1>{% block page_title %}Dashboard{% endblock %}</h1>
+            <!-- Header with gradient background -->
+            <div class="page-header-banner">
+                <h1>🔍 Meta Monitor</h1>
                 <div class="header-actions">
                     <span class="last-updated">Last updated: <span id="last-updated-time">--:--</span></span>
+                    <div class="auto-refresh-indicator">
+                        <span class="refresh-dot"></span>
+                        <span>Auto-refresh</span>
+                    </div>
                     {% block header_actions %}{% endblock %}
                 </div>
-            </header>
+            </div>
+
+            <!-- Admin Navigation -->
+            <div class="admin-nav">
+                <div class="nav-buttons">
+                    <a href="http://localhost:3000/" target="_blank" class="nav-button">
+                        ← Home
+                    </a>
+                    <a href="http://localhost:3000/admin" target="_blank" class="nav-button">
+                        Dashboard
+                    </a>
+                    <a href="http://localhost:3000/admin/load-test" target="_blank" class="nav-button">
+                        Load Testing
+                    </a>
+                    <a href="http://localhost:8001/batch-dashboard" target="_blank" class="nav-button">
+                        Batch Monitoring
+                    </a>
+                    <span class="nav-button active">
+                        Meta Monitoring
+                    </span>
+                    <a href="http://localhost:3000/maintenance?preview=true" target="_blank" class="nav-button">
+                        Maintenance Page
+                    </a>
+                </div>
+            </div>
+
+            <!-- Sub-navigation for Meta Monitor pages -->
+            <div class="sub-nav">
+                <a href="/dashboard/" class="sub-nav-link {% block nav_overview %}{% endblock %}">
+                    📊 Overview
+                </a>
+                <a href="/dashboard/alerts" class="sub-nav-link {% block nav_alerts %}{% endblock %}">
+                    🚨 Alerts
+                </a>
+                <a href="/dashboard/proposals" class="sub-nav-link {% block nav_proposals %}{% endblock %}">
+                    💡 Proposals
+                </a>
+                <a href="/dashboard/metrics" class="sub-nav-link {% block nav_metrics %}{% endblock %}">
+                    📈 Metrics
+                </a>
+                <a href="/dashboard/controls" class="sub-nav-link {% block nav_controls %}{% endblock %}">
+                    ⚙️ Controls
+                </a>
+            </div>
 
             <div class="content-body">
                 {% block content %}{% endblock %}

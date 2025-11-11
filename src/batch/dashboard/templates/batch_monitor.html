@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Batch Processing Monitor - FA AI System</title>
     <link rel="stylesheet" href="/batch-static/css/dashboard.css">
+    <style>
+        .nav-button:hover:not([style*="cursor: default"]) {
+            background: #f3f4f6 !important;
+            border-color: #d1d5db !important;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
@@ -19,6 +25,28 @@
                 <button class="refresh-button" id="refreshButton">
                     🔄 Refresh
                 </button>
+            </div>
+        </div>
+
+        <!-- Admin Navigation -->
+        <div style="margin-bottom: 24px; padding: 16px; background: #f9fafb; border-radius: 8px; border: 1px solid #e5e7eb;">
+            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                <a href="http://localhost:3000/" target="_blank" style="text-decoration: none;">
+                    <button class="nav-button" style="padding: 8px 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; color: #374151; cursor: pointer; font-size: 14px; transition: all 0.2s;">← Home</button>
+                </a>
+                <a href="http://localhost:3000/admin" target="_blank" style="text-decoration: none;">
+                    <button class="nav-button" style="padding: 8px 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; color: #374151; cursor: pointer; font-size: 14px; transition: all 0.2s;">Dashboard</button>
+                </a>
+                <a href="http://localhost:3000/admin/load-test" target="_blank" style="text-decoration: none;">
+                    <button class="nav-button" style="padding: 8px 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; color: #374151; cursor: pointer; font-size: 14px; transition: all 0.2s;">Load Testing</button>
+                </a>
+                <button class="nav-button" style="padding: 8px 16px; background: #6366f1; border: 1px solid #6366f1; border-radius: 6px; color: #ffffff; cursor: default; font-size: 14px; font-weight: 600;">Batch Monitoring</button>
+                <a href="http://localhost:9000/dashboard/" target="_blank" style="text-decoration: none;">
+                    <button class="nav-button" style="padding: 8px 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; color: #374151; cursor: pointer; font-size: 14px; transition: all 0.2s;">Meta Monitoring</button>
+                </a>
+                <a href="http://localhost:3000/maintenance?preview=true" target="_blank" style="text-decoration: none;">
+                    <button class="nav-button" style="padding: 8px 16px; background: #ffffff; border: 1px solid #e5e7eb; border-radius: 6px; color: #374151; cursor: pointer; font-size: 14px; transition: all 0.2s;">Maintenance Page</button>
+                </a>
             </div>
         </div>
 
