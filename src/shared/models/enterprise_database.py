@@ -57,7 +57,7 @@ class Household(Base):
     next_meeting_date = Column(DateTime, index=True)
 
     notes = Column(Text)
-    metadata = Column(JSONB)  # Flexible additional data
+    extra_metadata = Column(JSONB)  # Flexible additional data (renamed from 'metadata' to avoid SQLAlchemy reserved name conflict)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)

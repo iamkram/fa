@@ -54,10 +54,12 @@ def batch_data_retrieval_node(state: InteractiveGraphState, config) -> Dict[str,
         ticker = extract_ticker_from_query(state.sanitized_query)
 
     if not ticker:
-        logger.warning("[BatchData] No ticker found, routing to deep research")
+        logger.warning("[BatchData] No ticker found in query")
+        error_message = "I couldn't identify a specific stock ticker in your question. Please include a ticker symbol (e.g., AAPL, MSFT) or rephrase your question with the company name."
         return {
-            "classification": "deep_research",  # Force deep research
-            "batch_summary": None
+            "batch_summary": None,
+            "response_text": error_message,
+            "response_tier": "error"
         }
 
     # Determine tier
@@ -71,10 +73,12 @@ def batch_data_retrieval_node(state: InteractiveGraphState, config) -> Dict[str,
         ).order_by(StockSummary.generation_timestamp.desc()).first()
 
         if not summary:
-            logger.warning(f"[BatchData] No summary found for {ticker}, routing to deep research")
+            logger.warning(f"[BatchData] No summary found for {ticker}")
+            error_message = f"I don't have any pre-generated analysis available for {ticker} yet. This data may be coming soon in the next batch update. Please try asking about a different stock, or rephrase your question for a more general analysis."
             return {
-                "classification": "deep_research",
-                "batch_summary": None
+                "batch_summary": None,
+                "response_text": error_message,
+                "response_tier": "error"
             }
 
         # Extract requested tier
