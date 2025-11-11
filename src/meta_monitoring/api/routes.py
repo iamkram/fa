@@ -245,6 +245,101 @@ async def get_proposals(
         raise HTTPException(status_code=500, detail=str(e))
 
 
+@router.get("/metrics/latest")
+async def get_latest_metrics(db: Session = Depends(get_db)):
+    """Get latest evaluation metrics"""
+    try:
+        latest_eval = db.query(MetaEvaluationRun).filter(
+            MetaEvaluationRun.status == 'completed'
+        ).order_by(desc(MetaEvaluationRun.completed_at)).first()
+
+        if not latest_eval:
+            return {
+                "metrics": {
+                    "fact_accuracy": None,
+                    "guardrail_pass_rate": None,
+                    "avg_response_time_ms": None,
+                    "sla_compliance_rate": None
+                }
+            }
+
+        return {
+            "metrics": {
+                "fact_accuracy": latest_eval.fact_accuracy_score,
+                "guardrail_pass_rate": latest_eval.guardrail_pass_rate,
+                "avg_response_time_ms": latest_eval.avg_response_time_ms,
+                "sla_compliance_rate": latest_eval.sla_compliance_rate
+            }
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting latest metrics: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/alerts/stats")
+async def get_alert_stats(db: Session = Depends(get_db)):
+    """Get alert statistics"""
+    try:
+        total_alerts = db.query(MonitoringAlert).count()
+        active_alerts = db.query(MonitoringAlert).filter(MonitoringAlert.status == 'open').count()
+        critical_alerts = db.query(MonitoringAlert).filter(
+            MonitoringAlert.severity == 'critical',
+            MonitoringAlert.status == 'open'
+        ).count()
+        high_alerts = db.query(MonitoringAlert).filter(
+            MonitoringAlert.severity == 'high',
+            MonitoringAlert.status == 'open'
+        ).count()
+
+        # Resolved in last 24 hours
+        from datetime import timedelta
+        resolved_24h = db.query(MonitoringAlert).filter(
+            MonitoringAlert.status == 'resolved',
+            MonitoringAlert.updated_at >= datetime.utcnow() - timedelta(hours=24)
+        ).count()
+
+        return {
+            "total": total_alerts,
+            "active_count": active_alerts,
+            "critical_count": critical_alerts,
+            "high_count": high_alerts,
+            "resolved_24h": resolved_24h
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting alert stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
+@router.get("/proposals/stats")
+async def get_proposal_stats(db: Session = Depends(get_db)):
+    """Get proposal statistics"""
+    try:
+        total_proposals = db.query(ImprovementProposal).count()
+        pending_proposals = db.query(ImprovementProposal).filter(
+            ImprovementProposal.status == 'pending_review'
+        ).count()
+        approved_proposals = db.query(ImprovementProposal).filter(
+            ImprovementProposal.status == 'approved'
+        ).count()
+        implemented_proposals = db.query(ImprovementProposal).filter(
+            ImprovementProposal.status == 'implemented'
+        ).count()
+
+        return {
+            "total": total_proposals,
+            "pending": pending_proposals,
+            "approved": approved_proposals,
+            "implemented": implemented_proposals,
+            "rejected": total_proposals - pending_proposals - approved_proposals - implemented_proposals
+        }
+
+    except Exception as e:
+        logger.error(f"Error getting proposal stats: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+
 @router.get("/metrics/trend")
 async def get_metrics_trend(
     days: int = 7,
@@ -262,18 +357,17 @@ async def get_metrics_trend(
         trend_data = []
         for eval in evaluations:
             trend_data.append({
-                "date": eval.completed_at.isoformat(),
-                "fact_accuracy": eval.fact_accuracy_score,
-                "guardrail_pass_rate": eval.guardrail_pass_rate,
-                "avg_response_time_ms": eval.avg_response_time_ms,
-                "sla_compliance_rate": eval.sla_compliance_rate
+                "evaluated_at": eval.completed_at.isoformat(),
+                "metrics": {
+                    "fact_accuracy": eval.fact_accuracy_score,
+                    "guardrail_pass_rate": eval.guardrail_pass_rate,
+                    "avg_response_time_ms": eval.avg_response_time_ms,
+                    "sla_compliance_rate": eval.sla_compliance_rate,
+                    "total_queries": eval.total_queries_evaluated
+                }
             })
 
-        return {
-            "period_days": days,
-            "data_points": len(trend_data),
-            "trend": trend_data
-        }
+        return trend_data
 
     except Exception as e:
         logger.error(f"Error getting metrics trend: {e}", exc_info=True)

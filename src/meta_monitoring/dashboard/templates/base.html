@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Meta-Monitoring Dashboard{% endblock %}</title>
-    <link rel="stylesheet" href="/dashboard-static/css/dashboard.css">
+    <link rel="stylesheet" href="/dashboard-static/css/dashboard.css?v=3">
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -33,6 +33,28 @@
                     <span class="icon">⚙️</span> Controls
                 </a></li>
             </ul>
+
+            <!-- Separator -->
+            <div style="border-top: 1px solid rgba(255, 255, 255, 0.1); margin: 16px 12px;"></div>
+
+            <!-- Admin Dashboard Links -->
+            <div style="padding: 0 12px; margin-bottom: 16px;">
+                <p style="font-size: 11px; text-transform: uppercase; color: rgba(255, 255, 255, 0.5); margin-bottom: 8px; font-weight: 600; letter-spacing: 0.5px;">Admin Dashboard</p>
+                <ul class="nav-menu" style="margin: 0;">
+                    <li><a href="http://localhost:3000/" class="nav-link" target="_blank">
+                        <span class="icon">🏠</span> Home
+                    </a></li>
+                    <li><a href="http://localhost:3000/admin" class="nav-link" target="_blank">
+                        <span class="icon">🎛️</span> Dashboard
+                    </a></li>
+                    <li><a href="http://localhost:3000/admin/load-test" class="nav-link" target="_blank">
+                        <span class="icon">⚡</span> Load Testing
+                    </a></li>
+                    <li><a href="http://localhost:3000/maintenance?preview=true" class="nav-link" target="_blank">
+                        <span class="icon">🔧</span> Maintenance Page
+                    </a></li>
+                </ul>
+            </div>
 
             <div class="sidebar-footer">
                 <div class="auto-refresh-indicator">
