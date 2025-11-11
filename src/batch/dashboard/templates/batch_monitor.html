@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Batch Processing Monitor - FA AI System</title>
+    <link rel="stylesheet" href="/batch-static/css/dashboard.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📊 Batch Processing Monitor</h1>
+            <div class="header-controls">
+                <div class="status-indicator">
+                    <div class="status-dot" id="statusDot"></div>
+                    <span id="statusText">Loading...</span>
+                </div>
+                <button class="refresh-button" id="refreshButton">
+                    🔄 Refresh
+                </button>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="summary-section">
+            <div class="stat-card">
+                <div class="stat-icon">✅</div>
+                <div class="stat-content">
+                    <div class="stat-label">Success Rate</div>
+                    <div class="stat-value" id="successRate">--</div>
+                    <div class="stat-trend" id="successTrend">Latest run</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">📈</div>
+                <div class="stat-content">
+                    <div class="stat-label">Total Processed</div>
+                    <div class="stat-value" id="totalProcessed">--</div>
+                    <div class="stat-trend" id="totalTrend">Last 7 days</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">⏱️</div>
+                <div class="stat-content">
+                    <div class="stat-label">Avg Processing Time</div>
+                    <div class="stat-value" id="avgTime">--</div>
+                    <div class="stat-trend" id="timeTrend">Per stock</div>
+                </div>
+            </div>
+
+            <div class="stat-card">
+                <div class="stat-icon">✓</div>
+                <div class="stat-content">
+                    <div class="stat-label">Fact-Check Pass Rate</div>
+                    <div class="stat-value" id="factCheckRate">--</div>
+                    <div class="stat-trend" id="factCheckTrend">All tiers</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs">
+            <button class="tab active" data-tab="overview">Overview</button>
+            <button class="tab" data-tab="runs">Batch Runs</button>
+            <button class="tab" data-tab="stocks">Stock Details</button>
+            <button class="tab" data-tab="insights">Insights</button>
+        </div>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Overview Tab -->
+            <div class="tab-pane active" id="overview-pane">
+                <div class="content-grid">
+                    <!-- Latest Run Status -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Latest Batch Run</h3>
+                            <span class="badge" id="latestStatus">COMPLETED</span>
+                        </div>
+                        <div class="panel-body">
+                            <div class="info-row">
+                                <span class="label">Run ID:</span>
+                                <span class="value mono" id="latestRunId">--</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Date:</span>
+                                <span class="value" id="latestRunDate">--</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Stocks Processed:</span>
+                                <span class="value" id="latestStocksProcessed">--</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Duration:</span>
+                                <span class="value" id="latestDuration">--</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Successful:</span>
+                                <span class="value success" id="latestSuccessful">--</span>
+                            </div>
+                            <div class="info-row">
+                                <span class="label">Failed:</span>
+                                <span class="value error" id="latestFailed">--</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Performance Metrics -->
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Performance Metrics</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="metric-row">
+                                <div class="metric-label">Hook Summaries</div>
+                                <div class="metric-bar">
+                                    <div class="bar-fill" id="hookBar" style="width: 0%"></div>
+                                    <span class="bar-value" id="hookValue">-- words</span>
+                                </div>
+                            </div>
+                            <div class="metric-row">
+                                <div class="metric-label">Medium Summaries</div>
+                                <div class="metric-bar">
+                                    <div class="bar-fill" id="mediumBar" style="width: 0%"></div>
+                                    <span class="bar-value" id="mediumValue">-- words</span>
+                                </div>
+                            </div>
+                            <div class="metric-row">
+                                <div class="metric-label">Expanded Summaries</div>
+                                <div class="metric-bar">
+                                    <div class="bar-fill" id="expandedBar" style="width: 0%"></div>
+                                    <span class="bar-value" id="expandedValue">-- words</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Retry Statistics -->
+                    <div class="panel full-width">
+                        <div class="panel-header">
+                            <h3>Retry Statistics</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="retry-stats">
+                                <div class="retry-stat">
+                                    <div class="retry-icon">🔄</div>
+                                    <div class="retry-content">
+                                        <div class="retry-label">Hook Retries</div>
+                                        <div class="retry-value" id="hookRetries">--</div>
+                                    </div>
+                                </div>
+                                <div class="retry-stat">
+                                    <div class="retry-icon">🔄</div>
+                                    <div class="retry-content">
+                                        <div class="retry-label">Medium Retries</div>
+                                        <div class="retry-value" id="mediumRetries">--</div>
+                                    </div>
+                                </div>
+                                <div class="retry-stat">
+                                    <div class="retry-icon">🔄</div>
+                                    <div class="retry-content">
+                                        <div class="retry-label">Expanded Retries</div>
+                                        <div class="retry-value" id="expandedRetries">--</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Batch Runs Tab -->
+            <div class="tab-pane" id="runs-pane">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>Recent Batch Runs</h3>
+                        <div class="header-actions">
+                            <select id="runsLimit" class="filter-select">
+                                <option value="10">Last 10</option>
+                                <option value="20" selected>Last 20</option>
+                                <option value="50">Last 50</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Run Date</th>
+                                        <th>Run ID</th>
+                                        <th>Stocks</th>
+                                        <th>Success</th>
+                                        <th>Failed</th>
+                                        <th>Success Rate</th>
+                                        <th>Duration</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="runsTableBody">
+                                    <tr>
+                                        <td colspan="8" class="loading">Loading batch runs...</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Stock Details Tab -->
+            <div class="tab-pane" id="stocks-pane">
+                <div class="panel">
+                    <div class="panel-header">
+                        <h3>Stock Processing Details</h3>
+                        <div class="header-actions">
+                            <select id="stockRunSelector" class="filter-select">
+                                <option value="">Select a batch run...</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="panel-body">
+                        <div class="table-container">
+                            <table class="data-table">
+                                <thead>
+                                    <tr>
+                                        <th>Ticker</th>
+                                        <th>Status</th>
+                                        <th>Hook</th>
+                                        <th>Medium</th>
+                                        <th>Expanded</th>
+                                        <th>Fact-Check</th>
+                                        <th>Retries</th>
+                                        <th>Time (ms)</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="stocksTableBody">
+                                    <tr>
+                                        <td colspan="8" class="info">Select a batch run to view stock details</td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Insights Tab -->
+            <div class="tab-pane" id="insights-pane">
+                <div class="content-grid">
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Trends (Last 7 Days)</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="chart-placeholder" id="trendsChart">
+                                📊 Trend chart placeholder
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Quality Metrics</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div class="quality-metrics">
+                                <div class="quality-metric">
+                                    <div class="quality-label">Hook Fact-Check Pass Rate</div>
+                                    <div class="quality-bar">
+                                        <div class="quality-fill success" id="hookQualityBar" style="width: 0%"></div>
+                                        <span class="quality-value" id="hookQualityValue">--</span>
+                                    </div>
+                                </div>
+                                <div class="quality-metric">
+                                    <div class="quality-label">Medium Fact-Check Pass Rate</div>
+                                    <div class="quality-bar">
+                                        <div class="quality-fill success" id="mediumQualityBar" style="width: 0%"></div>
+                                        <span class="quality-value" id="mediumQualityValue">--</span>
+                                    </div>
+                                </div>
+                                <div class="quality-metric">
+                                    <div class="quality-label">Expanded Fact-Check Pass Rate</div>
+                                    <div class="quality-bar">
+                                        <div class="quality-fill success" id="expandedQualityBar" style="width: 0%"></div>
+                                        <span class="quality-value" id="expandedQualityValue">--</span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="panel full-width">
+                        <div class="panel-header">
+                            <h3>Recommendations</h3>
+                        </div>
+                        <div class="panel-body">
+                            <div id="recommendations" class="recommendations">
+                                <div class="recommendation">
+                                    <div class="recommendation-icon">💡</div>
+                                    <div class="recommendation-content">
+                                        <div class="recommendation-title">System performing well</div>
+                                        <div class="recommendation-text">No immediate actions required</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="/batch-static/js/dashboard.js"></script>
+</body>
+</html>

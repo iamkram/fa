@@ -46,10 +46,10 @@ async def initialize_batch_run(state: BatchAssistantState) -> BatchAssistantStat
 
         # Create batch run audit record
         batch_audit = BatchRunAudit(
-            batch_run_id=batch_run_id,
+            run_id=uuid.UUID(batch_run_id),
             run_date=datetime.now(),
-            status="RUNNING",
-            total_stocks=len(stock_tickers)
+            start_timestamp=datetime.now(),
+            total_stocks_processed=0  # Will be updated in finalize
         )
         session.add(batch_audit)
         session.commit()
@@ -76,7 +76,7 @@ async def process_all_stocks(state: BatchAssistantState) -> BatchAssistantState:
         # Use concurrent orchestrator for parallel processing
         orchestrator = ConcurrentBatchOrchestrator(
             graph=phase2_validation_graph,
-            max_workers=5  # Process 5 stocks at a time
+            max_concurrent=5  # Process 5 stocks at a time
         )
 
         with db_manager.get_session() as session:
@@ -84,13 +84,23 @@ async def process_all_stocks(state: BatchAssistantState) -> BatchAssistantState:
                 Stock.ticker.in_(state['stocks_to_process'])
             ).all()
 
-            results = await orchestrator.run_batch(
-                stocks=stocks,
+            # Convert Stock objects to dicts for orchestrator
+            stock_dicts = [
+                {
+                    "stock_id": str(stock.stock_id),  # Convert UUID to string
+                    "ticker": stock.ticker,
+                    "company_name": stock.company_name
+                }
+                for stock in stocks
+            ]
+
+            results = await orchestrator.run(
+                stocks=stock_dicts,
                 batch_run_id=state['batch_run_id']
             )
 
-            processed = sum(1 for r in results if r.get("status") == "success")
-            failed = sum(1 for r in results if r.get("status") == "failed")
+            processed = results["successful"]
+            failed = results["failed"]
 
         logger.info(f"✅ Batch complete: {processed} succeeded, {failed} failed")
 
@@ -116,16 +126,16 @@ async def finalize_batch_run(state: BatchAssistantState) -> BatchAssistantState:
 
     with db_manager.get_session() as session:
         batch_audit = session.query(BatchRunAudit).filter(
-            BatchRunAudit.batch_run_id == state['batch_run_id']
+            BatchRunAudit.run_id == uuid.UUID(state['batch_run_id'])
         ).first()
 
         if batch_audit:
-            batch_audit.status = state['status']
-            batch_audit.stocks_processed = state['processed_count']
-            batch_audit.stocks_failed = state['failed_count']
-            batch_audit.end_time = datetime.now()
+            batch_audit.total_stocks_processed = state['processed_count'] + state['failed_count']
+            batch_audit.successful_summaries = state['processed_count']
+            batch_audit.failed_summaries = state['failed_count']
+            batch_audit.end_timestamp = datetime.now()
             if state.get('error_message'):
-                batch_audit.error_message = state['error_message']
+                batch_audit.error_log = {"error": state['error_message']}
             session.commit()
 
     logger.info(f"🎉 Batch run {state['batch_run_id']} finalized with status: {state['status']}")
