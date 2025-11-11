@@ -172,7 +172,7 @@ class ApiClient {
      */
     async getMetricTrends(params = {}) {
         const queryString = new URLSearchParams(params).toString();
-        return this.get(`/metrics/trends${queryString ? '?' + queryString : ''}`);
+        return this.get(`/metrics/trend${queryString ? '?' + queryString : ''}`);
     }
 
     // Manual Control Endpoints
@@ -181,21 +181,21 @@ class ApiClient {
      * Trigger manual evaluation
      */
     async triggerEvaluation() {
-        return this.post('/control/evaluate');
+        return this.post('/evaluation/run');
     }
 
     /**
      * Trigger proposal generation for an alert
      */
     async triggerProposal(alertId) {
-        return this.post('/control/generate-proposal', { alert_id: alertId });
+        return this.post(`/research/analyze-alert/${alertId}`);
     }
 
     /**
      * Trigger validation for a proposal
      */
     async triggerValidation(proposalId) {
-        return this.post('/control/validate-proposal', { proposal_id: proposalId });
+        return this.post(`/validation/validate-proposal/${proposalId}`);
     }
 }
 
